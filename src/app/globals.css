@@ -1,0 +1,222 @@
+@import "tailwindcss";
+
+/* ══════════════════════════════════════════════════════════
+   OROS — design tokens
+
+   Marketplace density (Flipkart-style), warm palette.
+   Deliberately no black: the darkest ink is a deep aubergine
+   violet, and the page canvas is a warm grey rather than #eee.
+══════════════════════════════════════════════════════════ */
+@theme {
+  /* Ink — deep violet, never #000 */
+  --color-ink: #2b1b4d;
+  --color-ink-2: #4a3a6b;
+  --color-ink-3: #7a6b96;
+  --color-ink-4: #a99ec2;
+  --color-ink-5: #cfc7de;
+
+  /* Banner scrim — dark navy, distinct from ink so hero/showreel photos read as lit */
+  --color-navy: #0a1a33;
+
+  /* Grounds — cards sit white on a warm grey canvas */
+  --color-canvas: #f2eff5;
+  --color-shell: #ffffff;
+  --color-cream: #fbf7f0;
+  --color-cream-2: #f5eee2;
+
+  /* Brand — molten filament orange */
+  --color-flame: #ff5a2c;
+  --color-flame-dk: #e6421a;
+  --color-flame-lt: #fff1ec;
+
+  /* Commerce actions — amber adds to cart, flame buys now */
+  --color-gold: #ffb627;
+  --color-gold-dk: #f0a20d;
+  --color-gold-lt: #fff6e4;
+
+  /* Ratings / in-stock */
+  --color-leaf: #1a9e5f;
+  --color-leaf-lt: #e7f7ee;
+
+  /* Supporting chroma */
+  --color-lilac: #7c5cff;
+  --color-lilac-lt: #f1ecff;
+  --color-mint: #00c9a7;
+  --color-mint-lt: #e6fbf6;
+  --color-sky: #4cb8ff;
+  --color-sky-lt: #eaf6ff;
+
+  /* Lines */
+  --color-line: #e6e1ee;
+
+  /* Chrome — the header/announcement bar run near-black, but it is a deep
+     aubergine rather than #000 so the neon reads as lit rather than printed. */
+  --color-night: #0a0514;
+  --color-night-2: #140a26;
+  --color-night-3: #1d1033;
+  --color-neon: #a855f7;
+  --color-neon-2: #c084fc;
+  --color-neon-dim: #6b3fa0;
+
+  /* Type */
+  --font-display: var(--font-bricolage), "Bricolage Grotesque", system-ui, sans-serif;
+  --font-body: var(--font-jakarta), "Plus Jakarta Sans", system-ui, sans-serif;
+}
+
+html {
+  /* Lenis drives scrolling — never let the browser fight it */
+  scroll-behavior: auto;
+}
+
+/* Themed vertical scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-flame) var(--color-canvas);
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-canvas);
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    var(--color-flame),
+    var(--color-flame-dk)
+  );
+  border-radius: 9999px;
+  border: 2px solid var(--color-canvas);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-flame-dk);
+}
+/* the dark header/footer chrome keeps a dark track */
+.bg-night ::-webkit-scrollbar-track,
+.bg-night-2 ::-webkit-scrollbar-track {
+  background: var(--color-night-2);
+}
+
+body {
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* Lenis */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+/* Elements GSAP will reveal start hidden, but only once JS is live —
+   without this, a failed hydration would leave the page blank. */
+.js-ready [data-anim] {
+  visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .js-ready [data-anim] {
+    visibility: visible !important;
+  }
+}
+
+::selection {
+  background: var(--color-flame);
+  color: #fff;
+}
+
+/* A row a notification deep-linked to — briefly wash it gold so the eye
+   lands on it after the scroll. Works on <tr> and card <li> alike. */
+@keyframes focusFlash {
+  0% {
+    background-color: var(--color-gold-lt);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+.focus-flash {
+  animation: focusFlash 2.4s ease-out;
+}
+
+/* Native <button> defaults to cursor:default — every clickable control
+   in the app should read as clickable. */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+input[type="button"]:not(:disabled),
+input[type="submit"]:not(:disabled),
+select:not(:disabled),
+label:has(> input[type="checkbox"]),
+label:has(> input[type="radio"]) {
+  cursor: pointer;
+}
+
+/* Horizontal rails scroll by drag/arrow — hide the bar, keep the overflow */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Number inputs in the qty stepper shouldn't show spinners */
+.no-spin::-webkit-outer-spin-button,
+.no-spin::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.no-spin {
+  -moz-appearance: textfield;
+}
+
+/* Dual-thumb price range — two <input type=range> stacked; only the
+   thumbs take pointer events so both handles stay draggable. */
+.range-dual {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  background: transparent;
+  pointer-events: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.range-dual::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  pointer-events: auto;
+  height: 18px;
+  width: 18px;
+  border-radius: 9999px;
+  background: var(--color-flame);
+  border: 2px solid #fff;
+  box-shadow: 0 1px 5px rgba(43, 27, 77, 0.35);
+  cursor: pointer;
+}
+.range-dual::-moz-range-thumb {
+  pointer-events: auto;
+  height: 18px;
+  width: 18px;
+  border-radius: 9999px;
+  background: var(--color-flame);
+  border: 2px solid #fff;
+  box-shadow: 0 1px 5px rgba(43, 27, 77, 0.35);
+  cursor: pointer;
+}
+.range-dual::-webkit-slider-runnable-track {
+  background: transparent;
+}
+.range-dual::-moz-range-track {
+  background: transparent;
+}
