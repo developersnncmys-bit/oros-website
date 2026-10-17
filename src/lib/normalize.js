@@ -87,6 +87,28 @@ function toSpecs(specs) {
   }, {});
 }
 
+/** filaments[] from the backend getProduct payload, with nested colors */
+function toFilaments(filaments) {
+  if (!Array.isArray(filaments)) return [];
+  return filaments
+    .filter((f) => f && f._id)
+    .map((f) => ({
+      id: f._id,
+      name: f.name,
+      type: f.type,
+      priceDelta: Number(f.priceDelta) || 0,
+      priceMultiplier: f.priceMultiplier != null ? Number(f.priceMultiplier) : 1,
+      colors: (f.colors || []).map((c) => ({
+        id: c._id,
+        name: c.name,
+        hex: c.hex,
+        hexSecondary: c.hexSecondary || "",
+        hexTertiary: c.hexTertiary || "",
+        stock: Number(c.stock) || 0,
+      })),
+    }));
+}
+
 export function normalizeProduct(raw, extra = {}) {
   if (!raw) return null;
 
@@ -95,6 +117,7 @@ export function normalizeProduct(raw, extra = {}) {
   const media = raw.media ?? extra.media;
   const options = raw.options ?? extra.options;
   const priceSlabs = raw.priceSlabs ?? extra.priceSlabs;
+  const filaments = raw.filaments ?? extra.filaments;
 
   const source = { ...product };
   if (media) source.media = media;
@@ -134,6 +157,7 @@ export function normalizeProduct(raw, extra = {}) {
     bulkTiers: toBulkTiers(priceSlabs),
     options: normOptions,
     specs: toSpecs(specs),
+    filaments: toFilaments(filaments),
 
     // list payloads now ship options too, so the grid card can offer the
     // variant picker inline before "add to cart"

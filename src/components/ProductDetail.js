@@ -40,6 +40,24 @@ export default function ProductDetail({ product: p }) {
   // one so the cart line records the exact variant they wanted.
   const [selected, setSelected] = useState({});
 
+  // Filament + color picker state. Both must be picked when the product
+  // offers any filament, same requirement as options above. Separate from
+  // `selected` because filaments live in their own model, not productOptions.
+  const [selectedFilamentId, setSelectedFilamentId] = useState("");
+  const [selectedColorId, setSelectedColorId] = useState("");
+
+  const filamentsList = p.filaments || [];
+  const hasFilaments = filamentsList.length > 0;
+  const selectedFilament = useMemo(
+    () => filamentsList.find((f) => f.id === selectedFilamentId) || null,
+    [filamentsList, selectedFilamentId]
+  );
+  const selectedColor = useMemo(
+    () =>
+      selectedFilament?.colors.find((c) => c.id === selectedColorId) || null,
+    [selectedFilament, selectedColorId]
+  );
+
   const [qty, setQty] = useState(p.minQty || 1);
   const [activeSlide, setActiveSlide] = useState(0);
   const [added, setAdded] = useState(false);
@@ -121,11 +139,21 @@ export default function ProductDetail({ product: p }) {
   // priceDelta / priceMultiplier and drive both the displayed price and the
   // cart line
   const chosenValues = useMemo(
-    () =>
-      (p.options || [])
+    () => {
+      const fromOptions = (p.options || [])
         .map((o) => (o.values || []).find((v) => v.value === selected[o.name]))
-        .filter(Boolean),
-    [p.options, selected]
+        .filter(Boolean);
+      // Filament selection carries its own priceDelta/multiplier; fold it in
+      // the same way option values do so the pricing math stays uniform.
+      if (selectedFilament) {
+        fromOptions.push({
+          priceDelta: selectedFilament.priceDelta,
+          priceMultiplier: selectedFilament.priceMultiplier,
+        });
+      }
+      return fromOptions;
+    },
+    [p.options, selected, selectedFilament]
   );
 
   const unit = useMemo(
@@ -172,8 +200,8 @@ export default function ProductDetail({ product: p }) {
     optionsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const selectedOptions = () =>
-    (p.options || []).map((o) => {
+  const selectedOptions = () => {
+    const list = (p.options || []).map((o) => {
       const v = (o.values || []).find((x) => x.value === selected[o.name]);
       return {
         name: o.name,
@@ -183,11 +211,37 @@ export default function ProductDetail({ product: p }) {
           v?.priceMultiplier != null ? Number(v.priceMultiplier) : 1,
       };
     });
+    // Filament + color ride on the same options array so the cart's
+    // existing variant-key logic treats them as part of the identity.
+    if (selectedFilament) {
+      list.push({
+        name: "Filament",
+        value: selectedFilament.name,
+        priceDelta: selectedFilament.priceDelta,
+        priceMultiplier: selectedFilament.priceMultiplier,
+      });
+    }
+    if (selectedColor) {
+      list.push({
+        name: "Color",
+        value: selectedColor.name,
+        priceDelta: 0,
+        priceMultiplier: 1,
+      });
+    }
+    return list;
+  };
 
   // every option must be chosen — a variant product can't go in the cart
-  // until we know which variant it is
-  const missingOption = () =>
-    (p.options || []).find((o) => !selected[o.name]);
+  // until we know which variant it is. Filament + color follow the same rule
+  // when the product supports filaments.
+  const missingOption = () => {
+    const miss = (p.options || []).find((o) => !selected[o.name]);
+    if (miss) return miss;
+    if (hasFilaments && !selectedFilamentId) return { name: "filament" };
+    if (hasFilaments && !selectedColorId) return { name: "color" };
+    return null;
+  };
 
   // this exact variant is already a cart line — "Add" becomes "Already added"
   const inCart = useInCart(
@@ -560,9 +614,121 @@ export default function ProductDetail({ product: p }) {
             </Section>
           ))}
 
+          {/* ── Filament + color picker ── */}
+          {hasFilaments && (
+            <>
+              <Section
+                n={String((p.options?.length || 0) + 1).padStart(2, "0")}
+                title={
+                  <>
+                    Filament
+                    <span className="ml-1.5 text-xs font-bold text-flame">*</span>
+                  </>
+                }
+                value={selectedFilament ? selectedFilament.name : "Choose one"}
+              >
+                <div className="flex flex-wrap gap-2.5">
+                  {filamentsList.map((f) => {
+                    const on = selectedFilamentId === f.id;
+                    const inStock = f.colors.filter((c) => c.stock > 0).length;
+                    return (
+                      <button
+                        key={f.id}
+                        onClick={() => {
+                          setSelectedFilamentId(f.id);
+                          setSelectedColorId("");
+                          setOptError("");
+                        }}
+                        aria-pressed={on}
+                        className={`flex flex-col items-start gap-1.5 rounded-xl border-2 px-4 py-2.5 text-left transition-all ${
+                          on
+                            ? "border-ink bg-ink text-white"
+                            : "border-line text-ink-2 hover:border-ink-5"
+                        }`}
+                      >
+                        <span className="text-sm font-bold">
+                          {f.name}
+                          {(f.priceDelta > 0 || f.priceMultiplier !== 1) && (
+                            <span className="ml-1.5 text-xs font-semibold opacity-70">
+                              {f.priceDelta > 0 && `+${formatINR(f.priceDelta)}`}
+                              {f.priceMultiplier !== 1 && ` ×${f.priceMultiplier}`}
+                            </span>
+                          )}
+                        </span>
+                        <span className="text-[11px] font-semibold opacity-60">
+                          {inStock}/{f.colors.length} in stock
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </Section>
+
+              {selectedFilament && (
+                <Section
+                  n={String((p.options?.length || 0) + 2).padStart(2, "0")}
+                  title={
+                    <>
+                      Color
+                      <span className="ml-1.5 text-xs font-bold text-flame">*</span>
+                    </>
+                  }
+                  value={selectedColor ? selectedColor.name : "Choose one"}
+                >
+                  {selectedFilament.colors.length === 0 ? (
+                    <p className="text-sm text-ink-3">
+                      No colors defined for this filament yet.
+                    </p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2.5">
+                      {selectedFilament.colors.map((c) => {
+                        const on = selectedColorId === c.id;
+                        const oos = c.stock <= 0;
+                        return (
+                          <button
+                            key={c.id}
+                            onClick={() => {
+                              if (oos) return;
+                              setSelectedColorId(c.id);
+                              setOptError("");
+                            }}
+                            disabled={oos}
+                            aria-pressed={on}
+                            title={
+                              oos
+                                ? `${c.name} — Out of stock`
+                                : `${c.name} · Stock: ${c.stock}`
+                            }
+                            className={`group flex items-center gap-2.5 rounded-full border-2 py-1.5 pl-1.5 pr-4 transition-all ${
+                              oos
+                                ? "cursor-not-allowed border-line opacity-40"
+                                : on
+                                  ? "border-ink bg-ink text-white"
+                                  : "border-line text-ink-2 hover:border-ink-5"
+                            }`}
+                          >
+                            <SilkSwatch color={c} />
+                            <span className="text-sm font-bold">{c.name}</span>
+                            {oos && (
+                              <span className="text-[10px] font-extrabold uppercase tracking-wider text-flame">
+                                Out of stock
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </Section>
+              )}
+            </>
+          )}
+
           {/* ── Quantity + tiers ── */}
           <Section
-            n={String((p.options?.length || 0) + 1).padStart(2, "0")}
+            n={String(
+              (p.options?.length || 0) + (hasFilaments ? 3 : 1)
+            ).padStart(2, "0")}
             title="How many?"
             value={`${qty} unit${qty > 1 ? "s" : ""}`}
           >
@@ -888,6 +1054,28 @@ function TierMeter({ tiers, tierIndex, nextTier, qty, unit }) {
         ))}
       </div>
     </div>
+  );
+}
+
+function SilkSwatch({ color }) {
+  const stops = [color.hex, color.hexSecondary, color.hexTertiary].filter(Boolean);
+  if (stops.length <= 1) {
+    return (
+      <span
+        className="h-7 w-7 rounded-full ring-1 ring-inset ring-black/10"
+        style={{ backgroundColor: stops[0] || "#eee" }}
+      />
+    );
+  }
+  const slice = 100 / stops.length;
+  const bg = stops
+    .map((hex, i) => `${hex} ${i * slice}% ${(i + 1) * slice}%`)
+    .join(", ");
+  return (
+    <span
+      className="h-7 w-7 rounded-full ring-1 ring-inset ring-black/10"
+      style={{ background: `linear-gradient(90deg, ${bg})` }}
+    />
   );
 }
 
