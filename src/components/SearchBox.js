@@ -161,7 +161,7 @@ export default function SearchBox() {
   }, [showPanel]);
 
   return (
-    <div ref={wrap} className="relative min-w-0 flex-1 lg:max-w-2xl">
+    <div ref={wrap} className="relative min-w-0 flex-1">
       <form
         onSubmit={(e) => {
           e.preventDefault();

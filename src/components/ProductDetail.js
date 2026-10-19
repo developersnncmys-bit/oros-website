@@ -40,22 +40,82 @@ export default function ProductDetail({ product: p }) {
   // one so the cart line records the exact variant they wanted.
   const [selected, setSelected] = useState({});
 
-  // Filament + color picker state. Both must be picked when the product
-  // offers any filament, same requirement as options above. Separate from
-  // `selected` because filaments live in their own model, not productOptions.
-  const [selectedFilamentId, setSelectedFilamentId] = useState("");
+  // Filament → color family → color is a three-step picker. The cart
+  // still records a single Filament record, which we resolve from the
+  // picked color (each color belongs to exactly one filament).
+  //
+  // `selectedFamilyKey` is a family id, or "__none__" when the matching
+  // filaments have no color family assigned yet (legacy data). All three
+  // selections must be made for the product to be addable to cart.
+  const [selectedBaseType, setSelectedBaseType] = useState("");
+  const [selectedFamilyKey, setSelectedFamilyKey] = useState("");
   const [selectedColorId, setSelectedColorId] = useState("");
 
   const filamentsList = p.filaments || [];
   const hasFilaments = filamentsList.length > 0;
-  const selectedFilament = useMemo(
-    () => filamentsList.find((f) => f.id === selectedFilamentId) || null,
-    [filamentsList, selectedFilamentId]
-  );
-  const selectedColor = useMemo(
+
+  const baseTypes = useMemo(
     () =>
-      selectedFilament?.colors.find((c) => c.id === selectedColorId) || null,
-    [selectedFilament, selectedColorId]
+      [
+        ...new Set(filamentsList.map((f) => f.type).filter(Boolean)),
+      ].sort(),
+    [filamentsList]
+  );
+
+  const filamentsInBase = useMemo(
+    () => filamentsList.filter((f) => f.type === selectedBaseType),
+    [filamentsList, selectedBaseType]
+  );
+
+  const familiesInBase = useMemo(() => {
+    const map = new Map();
+    filamentsInBase.forEach((f) => {
+      const key = f.colorFamily?.id || "__none__";
+      const name = f.colorFamily?.name || "Unclassified";
+      if (!map.has(key)) map.set(key, { key, name });
+    });
+    return [...map.values()];
+  }, [filamentsInBase]);
+
+  // Colors from every filament record that matches base + family, each
+  // tagged with its parent filament so the cart knows the exact variant.
+  const colorsInFamily = useMemo(() => {
+    if (!selectedBaseType || !selectedFamilyKey) return [];
+    const list = [];
+    filamentsInBase
+      .filter(
+        (f) => (f.colorFamily?.id || "__none__") === selectedFamilyKey
+      )
+      .forEach((f) => {
+        f.colors.forEach((c) => {
+          list.push({
+            ...c,
+            filamentId: f.id,
+            filamentName: f.name,
+            finish: f.finish,
+            priceDelta: f.priceDelta,
+            priceMultiplier: f.priceMultiplier,
+          });
+        });
+      });
+    return list;
+  }, [filamentsInBase, selectedBaseType, selectedFamilyKey]);
+
+  const selectedColor = useMemo(
+    () => colorsInFamily.find((c) => c.id === selectedColorId) || null,
+    [colorsInFamily, selectedColorId]
+  );
+
+  const selectedFilament = useMemo(() => {
+    if (!selectedColor) return null;
+    return (
+      filamentsList.find((f) => f.id === selectedColor.filamentId) || null
+    );
+  }, [filamentsList, selectedColor]);
+
+  const selectedFamily = useMemo(
+    () => familiesInBase.find((f) => f.key === selectedFamilyKey) || null,
+    [familiesInBase, selectedFamilyKey]
   );
 
   const [qty, setQty] = useState(p.minQty || 1);
@@ -238,7 +298,8 @@ export default function ProductDetail({ product: p }) {
   const missingOption = () => {
     const miss = (p.options || []).find((o) => !selected[o.name]);
     if (miss) return miss;
-    if (hasFilaments && !selectedFilamentId) return { name: "filament" };
+    if (hasFilaments && !selectedBaseType) return { name: "filament" };
+    if (hasFilaments && !selectedFamilyKey) return { name: "color family" };
     if (hasFilaments && !selectedColorId) return { name: "color" };
     return null;
   };
@@ -614,9 +675,10 @@ export default function ProductDetail({ product: p }) {
             </Section>
           ))}
 
-          {/* ── Filament + color picker ── */}
+          {/* ── Filament → Family → Color picker ── */}
           {hasFilaments && (
             <>
+              {/* Step 1: base filament (PLA, PETG, ABS…) */}
               <Section
                 n={String((p.options?.length || 0) + 1).padStart(2, "0")}
                 title={
@@ -625,48 +687,76 @@ export default function ProductDetail({ product: p }) {
                     <span className="ml-1.5 text-xs font-bold text-flame">*</span>
                   </>
                 }
-                value={selectedFilament ? selectedFilament.name : "Choose one"}
+                value={selectedBaseType || "Choose one"}
               >
                 <div className="flex flex-wrap gap-2.5">
-                  {filamentsList.map((f) => {
-                    const on = selectedFilamentId === f.id;
-                    const inStock = f.colors.filter((c) => c.stock > 0).length;
+                  {baseTypes.map((type) => {
+                    const on = selectedBaseType === type;
                     return (
                       <button
-                        key={f.id}
+                        key={type}
                         onClick={() => {
-                          setSelectedFilamentId(f.id);
+                          setSelectedBaseType(type);
+                          setSelectedFamilyKey("");
                           setSelectedColorId("");
                           setOptError("");
                         }}
                         aria-pressed={on}
-                        className={`flex flex-col items-start gap-1.5 rounded-xl border-2 px-4 py-2.5 text-left transition-all ${
+                        className={`rounded-xl border-2 px-4 py-2.5 text-sm font-bold transition-all ${
                           on
                             ? "border-ink bg-ink text-white"
                             : "border-line text-ink-2 hover:border-ink-5"
                         }`}
                       >
-                        <span className="text-sm font-bold">
-                          {f.name}
-                          {(f.priceDelta > 0 || f.priceMultiplier !== 1) && (
-                            <span className="ml-1.5 text-xs font-semibold opacity-70">
-                              {f.priceDelta > 0 && `+${formatINR(f.priceDelta)}`}
-                              {f.priceMultiplier !== 1 && ` ×${f.priceMultiplier}`}
-                            </span>
-                          )}
-                        </span>
-                        <span className="text-[11px] font-semibold opacity-60">
-                          {inStock}/{f.colors.length} in stock
-                        </span>
+                        {type}
                       </button>
                     );
                   })}
                 </div>
               </Section>
 
-              {selectedFilament && (
+              {/* Step 2: color family — only after a base is picked */}
+              {selectedBaseType && (
                 <Section
                   n={String((p.options?.length || 0) + 2).padStart(2, "0")}
+                  title={
+                    <>
+                      Color family
+                      <span className="ml-1.5 text-xs font-bold text-flame">*</span>
+                    </>
+                  }
+                  value={selectedFamily?.name || "Choose one"}
+                >
+                  <div className="flex flex-wrap gap-2.5">
+                    {familiesInBase.map((fam) => {
+                      const on = selectedFamilyKey === fam.key;
+                      return (
+                        <button
+                          key={fam.key}
+                          onClick={() => {
+                            setSelectedFamilyKey(fam.key);
+                            setSelectedColorId("");
+                            setOptError("");
+                          }}
+                          aria-pressed={on}
+                          className={`rounded-xl border-2 px-4 py-2.5 text-sm font-bold uppercase tracking-wide transition-all ${
+                            on
+                              ? "border-ink bg-ink text-white"
+                              : "border-line text-ink-2 hover:border-ink-5"
+                          }`}
+                        >
+                          {fam.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </Section>
+              )}
+
+              {/* Step 3: color — only after a family is picked */}
+              {selectedBaseType && selectedFamilyKey && (
+                <Section
+                  n={String((p.options?.length || 0) + 3).padStart(2, "0")}
                   title={
                     <>
                       Color
@@ -675,18 +765,18 @@ export default function ProductDetail({ product: p }) {
                   }
                   value={selectedColor ? selectedColor.name : "Choose one"}
                 >
-                  {selectedFilament.colors.length === 0 ? (
+                  {colorsInFamily.length === 0 ? (
                     <p className="text-sm text-ink-3">
-                      No colors defined for this filament yet.
+                      No colors in this family yet.
                     </p>
                   ) : (
                     <div className="flex flex-wrap gap-2.5">
-                      {selectedFilament.colors.map((c) => {
+                      {colorsInFamily.map((c) => {
                         const on = selectedColorId === c.id;
                         const oos = c.stock <= 0;
                         return (
                           <button
-                            key={c.id}
+                            key={`${c.filamentId}-${c.id}`}
                             onClick={() => {
                               if (oos) return;
                               setSelectedColorId(c.id);
@@ -697,7 +787,7 @@ export default function ProductDetail({ product: p }) {
                             title={
                               oos
                                 ? `${c.name} — Out of stock`
-                                : `${c.name} · Stock: ${c.stock}`
+                                : `${c.name}${c.finish ? ` · ${c.finish}` : ""} · Stock: ${c.stock}`
                             }
                             className={`group flex items-center gap-2.5 rounded-full border-2 py-1.5 pl-1.5 pr-4 transition-all ${
                               oos
@@ -708,7 +798,16 @@ export default function ProductDetail({ product: p }) {
                             }`}
                           >
                             <SilkSwatch color={c} />
-                            <span className="text-sm font-bold">{c.name}</span>
+                            <span className="flex flex-col items-start leading-tight">
+                              <span className="text-sm font-bold">
+                                {c.name}
+                              </span>
+                              {c.finish && (
+                                <span className="text-[10px] font-semibold uppercase tracking-wider opacity-70">
+                                  {c.finish}
+                                </span>
+                              )}
+                            </span>
                             {oos && (
                               <span className="text-[10px] font-extrabold uppercase tracking-wider text-flame">
                                 Out of stock
@@ -727,7 +826,7 @@ export default function ProductDetail({ product: p }) {
           {/* ── Quantity + tiers ── */}
           <Section
             n={String(
-              (p.options?.length || 0) + (hasFilaments ? 3 : 1)
+              (p.options?.length || 0) + (hasFilaments ? 4 : 1)
             ).padStart(2, "0")}
             title="How many?"
             value={`${qty} unit${qty > 1 ? "s" : ""}`}

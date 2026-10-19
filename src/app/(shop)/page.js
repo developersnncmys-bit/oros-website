@@ -55,13 +55,12 @@ export default async function Home() {
     <div className="space-y-3 pb-3">
       <BannerCarousel banners={sliderBanners} />
 
-      {featuredBestsellers.length > 0 && (
+      {bestOf.length > 0 && (
         <Rail
-          title="Bestsellers this month"
-          subtitle="What everyone else is printing"
-          products={featuredBestsellers}
+          title="Explore our Collection"
+          subtitle="Everything we print, in one place"
+          products={bestOf}
           href="/shop"
-          showOptions
         />
       )}
 
@@ -121,12 +120,13 @@ export default async function Home() {
         </section>
       )}
 
-      {bestOf.length > 0 && (
+      {featuredBestsellers.length > 0 && (
         <Rail
-          title="Explore our catalogue"
-          subtitle="Everything we print, in one place"
-          products={bestOf}
+          title="Popular Picks"
+          subtitle="What everyone else is printing"
+          products={featuredBestsellers}
           href="/shop"
+          showOptions
         />
       )}
 

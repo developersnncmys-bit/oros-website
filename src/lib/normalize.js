@@ -96,6 +96,16 @@ function toFilaments(filaments) {
       id: f._id,
       name: f.name,
       type: f.type,
+      // Finish is the inventory PDF parenthetical — "Matte", "Silk",
+      // "Sparkle", etc. Shown as a subtitle under the filament name.
+      finish: f.finish || "",
+      // ColorFamily may arrive populated ({_id,name}) or as a raw id,
+      // depending on which backend route served it. Normalize both.
+      colorFamily: f.colorFamily
+        ? typeof f.colorFamily === "object"
+          ? { id: f.colorFamily._id, name: f.colorFamily.name }
+          : { id: f.colorFamily, name: "" }
+        : null,
       priceDelta: Number(f.priceDelta) || 0,
       priceMultiplier: f.priceMultiplier != null ? Number(f.priceMultiplier) : 1,
       colors: (f.colors || []).map((c) => ({

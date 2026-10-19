@@ -25,7 +25,7 @@ function HexImage({ src, alt, tone = "neon" }) {
   const ring = tone === "gold" ? "#f5b301" : "#a855f7";
   return (
     <span
-      className="relative block h-[54px] w-[48px] shrink-0 transition-transform duration-300 group-hover:scale-105"
+      className="relative block h-[74px] w-[64px] shrink-0 transition-transform duration-300 group-hover:scale-105"
       style={{ clipPath: HEX_CLIP }}
     >
       <span
@@ -42,7 +42,7 @@ function HexImage({ src, alt, tone = "neon" }) {
             src={src}
             alt={alt}
             fill
-            sizes="48px"
+            sizes="64px"
             className="object-cover"
           />
         ) : null}
@@ -132,29 +132,31 @@ export default function Header() {
         }}
       />
 
-      <div className="relative mx-auto max-w-[1600px] px-3 py-3 lg:px-8">
-        <div className="flex items-center justify-center gap-3 lg:gap-6">
+      <div className="relative w-full px-6 py-1 lg:px-16">
+        <div className="flex items-center gap-3 lg:gap-6">
           <Link href="/" aria-label="OROS — home" className="group shrink-0">
             <Image
-              src="/brand/new-logo.svg"
+              src="/brand/oros-logo-white.png"
               alt="OROS"
               width={150}
-              height={150}
+              height={100}
               preload
-              className="h-12 w-12 rounded-xl bg-white object-contain p-1 ring-1 ring-neon/50 transition-all duration-300 group-hover:ring-2 group-hover:ring-neon lg:h-14 lg:w-14"
+              className="h-20 w-20 rounded-xl object-contain p-1 transition-all duration-300 lg:h-28 lg:w-28"
             />
           </Link>
 
           {/* tablet / desktop: search sits in the main row */}
-          <div className="hidden min-w-0 sm:flex sm:w-80 md:w-[440px] lg:w-[560px] xl:w-[640px]">
-            <SearchBox />
+          <div className="hidden min-w-0 flex-1 justify-center sm:flex">
+            <div className="w-full max-w-[560px]">
+              <SearchBox />
+            </div>
           </div>
 
           <div className="flex shrink-0 items-center gap-2 lg:gap-3">
             <Link
               href="/custom"
               title="Custom order"
-              className="group hidden w-[104px] shrink-0 flex-col items-center gap-1 rounded-xl border border-gold/60 px-1 py-1.5 transition-all duration-300 hover:scale-110 hover:bg-gold/10 xl:flex"
+              className="group hidden w-[160px] shrink-0 flex-row items-center gap-2 rounded-xl border border-gold/60 px-2 py-1.5 transition-all duration-300 hover:scale-110 hover:bg-gold/10 xl:flex"
             >
               <span
                 className="relative grid h-[54px] w-[48px] shrink-0 place-items-center transition-transform duration-300 group-hover:scale-105"
@@ -162,7 +164,7 @@ export default function Header() {
               >
                 <Crown size={22} className="text-gold" weight="fill" />
               </span>
-              <span className="block w-full min-w-0 text-center leading-tight">
+              <span className="block min-w-0 flex-1 text-left leading-tight">
                 <span className="block text-[9px] font-extrabold uppercase tracking-[0.22em] text-gold">
                   OROS
                 </span>
@@ -242,17 +244,12 @@ export default function Header() {
 
           <ul
             ref={rail}
-            className={`no-scrollbar mx-auto flex max-w-[1248px] items-start gap-0 overflow-x-auto px-1 py-2.5 ${
+            className={`no-scrollbar flex w-full items-start gap-0 overflow-x-auto px-1 py-2.5 ${
               needsSlider ? "justify-start scroll-smooth" : "justify-center"
             }`}
           >
-            {categories.map((c, i) => (
-              <li
-                key={c.slug}
-                className={`w-[104px] shrink-0 ${
-                  i % 2 === 0 ? "translate-y-1.5" : "-translate-y-1.5"
-                }`}
-              >
+            {categories.map((c) => (
+              <li key={c.slug} className="w-[128px] shrink-0">
                 <Link
                   href={`/shop?category=${c.slug}`}
                   title={c.name}
