@@ -1178,11 +1178,10 @@ function SilkSwatch({ color }) {
   );
 }
 
-function Section({ n, title, value, children }) {
+function Section({ title, value, children }) {
   return (
     <section className="mt-9 border-t border-line pt-7">
       <div className="mb-4 flex items-baseline gap-3">
-        <span className="font-display text-xs font-extrabold text-flame">{n}</span>
         <h2 className="font-display text-lg font-extrabold tracking-tight text-ink">
           {title}
         </h2>
