@@ -64,6 +64,7 @@ function toBulkTiers(priceSlabs) {
 /** options[] (with values[]) -> normalised, ready to render on the PDP */
 function toOptions(options) {
   if (!Array.isArray(options)) return [];
+  const n = (x) => (x == null || x === "" ? null : Number(x));
   return options.map((o) => ({
     id: o._id || o.id,
     name: o.name,
@@ -74,6 +75,12 @@ function toOptions(options) {
       value: v.value,
       priceDelta: Number(v.priceDelta) || 0,
       priceMultiplier: v.priceMultiplier != null ? Number(v.priceMultiplier) : 1,
+      // Dimensions are only set on size-type options; the PDP treats a
+      // null length/width/height as "nothing to render" and hides the line.
+      length: n(v.length),
+      width: n(v.width),
+      height: n(v.height),
+      unit: v.unit || "cm",
     })),
   }));
 }
@@ -151,6 +158,25 @@ export function normalizeProduct(raw, extra = {}) {
     leadTimeDays: product.leadTimeDays ?? null,
     minQty: Number(product.minQty) || 1,
     isCustomisable: !!product.isCustomisable,
+    allowDualColor: !!product.allowDualColor,
+    dualColorSurcharge: Number(product.dualColorSurcharge) || 0,
+    // Pairs are stored as FilamentColor ObjectIds — the PDP matches them
+    // against each colour's `id` to filter the Primary + Secondary pickers.
+    // Can arrive populated ({_id,...}) or as raw ids depending on the route.
+    allowedColorCombos: Array.isArray(product.allowedColorCombos)
+      ? product.allowedColorCombos
+          .map((pair) => ({
+            primary:
+              pair?.primary && typeof pair.primary === "object"
+                ? pair.primary._id
+                : pair?.primary || null,
+            secondary:
+              pair?.secondary && typeof pair.secondary === "object"
+                ? pair.secondary._id
+                : pair?.secondary || null,
+          }))
+          .filter((p) => p.primary && p.secondary)
+      : [],
     status: product.status || "PUBLISHED",
 
     category: slugOf(product.category) || idOf(product.category) || "",

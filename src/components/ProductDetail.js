@@ -5,6 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   CaretRight,
+  CaretLeft,
+  CaretUp,
+  CaretDown,
   Minus,
   Play,
   Plus,
@@ -50,6 +53,12 @@ export default function ProductDetail({ product: p }) {
   const [selectedBaseType, setSelectedBaseType] = useState("");
   const [selectedFamilyKey, setSelectedFamilyKey] = useState("");
   const [selectedColorId, setSelectedColorId] = useState("");
+
+  // Only consulted when p.allowDualColor is true. "SINGLE" keeps the flow
+  // identical to today; "DUAL" reveals a Secondary color picker and makes
+  // both the Primary + Secondary selection required before Add-to-cart.
+  const [colorMode, setColorMode] = useState("SINGLE");
+  const [selectedSecondaryColorId, setSelectedSecondaryColorId] = useState("");
 
   const filamentsList = p.filaments || [];
   const hasFilaments = filamentsList.length > 0;
@@ -106,6 +115,56 @@ export default function ProductDetail({ product: p }) {
     [colorsInFamily, selectedColorId]
   );
 
+  const dualMode = p.allowDualColor && colorMode === "DUAL";
+  const selectedSecondaryColor = useMemo(
+    () =>
+      dualMode
+        ? colorsInFamily.find((c) => c.id === selectedSecondaryColorId) || null
+        : null,
+    [dualMode, colorsInFamily, selectedSecondaryColorId]
+  );
+
+  // Admin-defined whitelist of {primary, secondary} FilamentColor id pairs.
+  // When empty, every colour / pair is allowed (back-compat). Pairs are
+  // directional — a colour saved as Primary in admin only appears in the
+  // Primary picker here, and the Secondary picker is scoped to secondaries
+  // paired with the chosen Primary.
+  const combosList = p.allowedColorCombos || [];
+  const hasCombos = combosList.length > 0;
+
+  const allowedPrimaryIds = useMemo(() => {
+    if (!hasCombos) return null;
+    return new Set(combosList.map((pair) => pair.primary));
+  }, [combosList, hasCombos]);
+
+  const allowedSecondaryIds = useMemo(() => {
+    if (!hasCombos || !selectedColorId) return null;
+    const set = new Set();
+    combosList.forEach((pair) => {
+      if (pair.primary === selectedColorId) set.add(pair.secondary);
+    });
+    return set;
+  }, [combosList, hasCombos, selectedColorId]);
+
+  // In Single-colour mode the picker shows every colour in the family;
+  // the admin whitelist only kicks in once the customer picks Two colours
+  // so that single-colour buyers aren't restricted by a dual-colour setup.
+  const primaryColorChoices = useMemo(
+    () =>
+      dualMode && allowedPrimaryIds
+        ? colorsInFamily.filter((c) => allowedPrimaryIds.has(c.id))
+        : colorsInFamily,
+    [colorsInFamily, allowedPrimaryIds, dualMode]
+  );
+
+  const secondaryColorChoices = useMemo(
+    () =>
+      allowedSecondaryIds
+        ? colorsInFamily.filter((c) => allowedSecondaryIds.has(c.id))
+        : colorsInFamily,
+    [colorsInFamily, allowedSecondaryIds]
+  );
+
   const selectedFilament = useMemo(() => {
     if (!selectedColor) return null;
     return (
@@ -123,6 +182,12 @@ export default function ProductDetail({ product: p }) {
   const [added, setAdded] = useState(false);
   const [optError, setOptError] = useState("");
   const art = useRef(null);
+
+  // Only THUMB_WINDOW thumbnails are shown at once; the rest are reached
+  // via the up/down (down to left/right on mobile) buttons that straddle
+  // the thumbnail strip when there are more images than fit.
+  const THUMB_WINDOW = 5;
+  const [thumbStart, setThumbStart] = useState(0);
 
   // image zoom: hover (desktop) pans a magnified view that tracks the cursor;
   // the pinned flag lets touch devices tap-to-lock the zoom and tap again to
@@ -168,6 +233,45 @@ export default function ProductDetail({ product: p }) {
     setZoomPinned(false);
   }, [activeSlide]);
 
+  // Keep the thumbnail strip's window scrolled so the active thumbnail is
+  // always visible. Fires when the user uses the main-image arrows (or any
+  // future keyboard / swipe handler) to move past the current window.
+  useEffect(() => {
+    setThumbStart((start) => {
+      if (activeSlide < start) return activeSlide;
+      if (activeSlide >= start + THUMB_WINDOW) {
+        return Math.max(0, activeSlide - THUMB_WINDOW + 1);
+      }
+      return start;
+    });
+  }, [activeSlide]);
+
+  // Combo whitelists can leave a stale Secondary dangling after the Primary
+  // moves — e.g. picked {A, B}, then switched Primary to C where B isn't a
+  // valid partner. Drop the Secondary silently so the customer re-picks from
+  // the newly-filtered set rather than seeing a disabled stale selection.
+  useEffect(() => {
+    if (!dualMode || !allowedSecondaryIds || !selectedSecondaryColorId) return;
+    if (!allowedSecondaryIds.has(selectedSecondaryColorId)) {
+      setSelectedSecondaryColorId("");
+    }
+  }, [dualMode, allowedSecondaryIds, selectedSecondaryColorId]);
+
+  // When the admin's whitelist leaves only one valid Secondary for the
+  // chosen Primary, there is nothing to pick — auto-select it so the
+  // customer isn't asked to click the single remaining swatch.
+  useEffect(() => {
+    if (!dualMode || !selectedColorId || selectedSecondaryColorId) return;
+    if (secondaryColorChoices.length === 1) {
+      setSelectedSecondaryColorId(secondaryColorChoices[0].id);
+    }
+  }, [
+    dualMode,
+    selectedColorId,
+    selectedSecondaryColorId,
+    secondaryColorChoices,
+  ]);
+
   // ── Track dwell time on this PDP ──
   // Clock starts on mount; the elapsed seconds are reported once, on
   // route-change (effect cleanup) or when the tab/window goes away
@@ -211,9 +315,12 @@ export default function ProductDetail({ product: p }) {
           priceMultiplier: selectedFilament.priceMultiplier,
         });
       }
+      if (dualMode && p.dualColorSurcharge > 0) {
+        fromOptions.push({ priceDelta: p.dualColorSurcharge, priceMultiplier: 1 });
+      }
       return fromOptions;
     },
-    [p.options, selected, selectedFilament]
+    [p.options, p.dualColorSurcharge, selected, selectedFilament, dualMode]
   );
 
   const unit = useMemo(
@@ -283,9 +390,17 @@ export default function ProductDetail({ product: p }) {
     }
     if (selectedColor) {
       list.push({
-        name: "Color",
+        name: dualMode ? "Primary Color" : "Color",
         value: selectedColor.name,
         priceDelta: 0,
+        priceMultiplier: 1,
+      });
+    }
+    if (dualMode && selectedSecondaryColor) {
+      list.push({
+        name: "Secondary Color",
+        value: selectedSecondaryColor.name,
+        priceDelta: p.dualColorSurcharge || 0,
         priceMultiplier: 1,
       });
     }
@@ -300,7 +415,18 @@ export default function ProductDetail({ product: p }) {
     if (miss) return miss;
     if (hasFilaments && !selectedBaseType) return { name: "filament" };
     if (hasFilaments && !selectedFamilyKey) return { name: "color family" };
-    if (hasFilaments && !selectedColorId) return { name: "color" };
+    if (hasFilaments && !selectedColorId) {
+      return { name: dualMode ? "primary color" : "color" };
+    }
+    if (dualMode && !selectedSecondaryColorId) {
+      return { name: "secondary color" };
+    }
+    if (
+      dualMode &&
+      selectedSecondaryColorId === selectedColorId
+    ) {
+      return { name: "a secondary color different from the primary" };
+    }
     return null;
   };
 
@@ -386,43 +512,100 @@ export default function ProductDetail({ product: p }) {
         {/* ══ LEFT — gallery ══ */}
         <div className="lg:sticky lg:top-[99px] lg:pl-8">
           <div className="flex flex-col-reverse gap-3 px-5 py-8 lg:flex-row lg:px-0">
-            {/* thumbnails — below the main image on mobile, left of it on desktop */}
-            {slides.length > 1 && (
-              <div className="flex flex-row flex-wrap gap-2 lg:flex-col lg:flex-nowrap">
-                {slides.map((s, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setActiveSlide(i)}
-                    aria-label={
-                      s.kind === "video"
-                        ? `Play video ${i + 1}`
-                        : `View image ${i + 1}`
-                    }
-                    className={`relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2 bg-canvas transition-colors ${
-                      i === activeSlide
-                        ? "border-flame"
-                        : "border-line hover:border-ink-5"
-                    }`}
-                  >
-                    <ProductImage
-                      src={s.kind === "video" ? s.poster || p.image : s.url}
-                      alt=""
-                      sizes="64px"
-                      overlay
-                    />
-                    {s.kind === "video" && (
-                      <span className="absolute inset-0 grid place-items-center bg-black/25">
-                        <Play
-                          size={16}
-                          weight="fill"
-                          className="text-white drop-shadow"
-                        />
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
+            {/* thumbnails — below the main image on mobile, left of it on
+                desktop. At most THUMB_WINDOW tiles are rendered at a time;
+                the rest are reached with the caret buttons on either end,
+                which show up only when there is somewhere to scroll to. */}
+            {slides.length > 1 && (() => {
+              const canPrev = thumbStart > 0;
+              const canNext = thumbStart + THUMB_WINDOW < slides.length;
+              const visible = slides.slice(
+                thumbStart,
+                thumbStart + THUMB_WINDOW
+              );
+              const showNav = slides.length > THUMB_WINDOW;
+              return (
+                <div className="flex flex-row items-center gap-2 lg:flex-col">
+                  {showNav && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setThumbStart((s) => Math.max(0, s - 1))
+                      }
+                      disabled={!canPrev}
+                      aria-label="Previous thumbnails"
+                      className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-line bg-shell text-ink-3 transition-colors hover:border-ink-5 hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
+                    >
+                      <CaretLeft size={13} weight="bold" className="lg:hidden" />
+                      <CaretUp
+                        size={13}
+                        weight="bold"
+                        className="hidden lg:block"
+                      />
+                    </button>
+                  )}
+
+                  <div className="flex flex-row gap-2 lg:flex-col">
+                    {visible.map((s, idx) => {
+                      const i = thumbStart + idx;
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => setActiveSlide(i)}
+                          aria-label={
+                            s.kind === "video"
+                              ? `Play video ${i + 1}`
+                              : `View image ${i + 1}`
+                          }
+                          className={`relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2 bg-canvas transition-colors ${
+                            i === activeSlide
+                              ? "border-flame"
+                              : "border-line hover:border-ink-5"
+                          }`}
+                        >
+                          <ProductImage
+                            src={s.kind === "video" ? s.poster || p.image : s.url}
+                            alt=""
+                            sizes="64px"
+                            overlay
+                          />
+                          {s.kind === "video" && (
+                            <span className="absolute inset-0 grid place-items-center bg-black/25">
+                              <Play
+                                size={16}
+                                weight="fill"
+                                className="text-white drop-shadow"
+                              />
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {showNav && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setThumbStart((s) =>
+                          Math.min(slides.length - THUMB_WINDOW, s + 1)
+                        )
+                      }
+                      disabled={!canNext}
+                      aria-label="Next thumbnails"
+                      className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-line bg-shell text-ink-3 transition-colors hover:border-ink-5 hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
+                    >
+                      <CaretRight size={13} weight="bold" className="lg:hidden" />
+                      <CaretDown
+                        size={13}
+                        weight="bold"
+                        className="hidden lg:block"
+                      />
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
 
             <div className="relative flex-1 lg:mx-auto lg:max-w-105">
               <div
@@ -568,6 +751,37 @@ export default function ProductDetail({ product: p }) {
                   <Cube size={13} weight="bold" />
                   Printed to order
                 </span>
+
+                {slides.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveSlide((i) => Math.max(0, i - 1));
+                      }}
+                      disabled={activeSlide === 0}
+                      aria-label="Previous image"
+                      className="absolute left-3 top-1/2 z-10 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/85 text-ink shadow-md backdrop-blur-sm transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-30"
+                    >
+                      <CaretLeft size={16} weight="bold" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveSlide((i) =>
+                          Math.min(slides.length - 1, i + 1)
+                        );
+                      }}
+                      disabled={activeSlide === slides.length - 1}
+                      aria-label="Next image"
+                      className="absolute right-3 top-1/2 z-10 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/85 text-ink shadow-md backdrop-blur-sm transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-30"
+                    >
+                      <CaretRight size={16} weight="bold" />
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -640,6 +854,12 @@ export default function ProductDetail({ product: p }) {
               <div className="flex flex-wrap gap-2.5">
                 {(opt.values || []).map((v) => {
                   const on = selected[opt.name] === v.value;
+                  const dimParts = [v.length, v.width, v.height].filter(
+                    (d) => d != null
+                  );
+                  const dims = dimParts.length
+                    ? `${dimParts.join(" × ")} ${v.unit || "cm"}`
+                    : "";
                   return (
                     <button
                       key={v.id || v.value}
@@ -648,6 +868,7 @@ export default function ProductDetail({ product: p }) {
                         setOptError("");
                       }}
                       aria-pressed={on}
+                      title={dims ? `${v.value} · ${dims}` : v.value}
                       className={`group flex items-center gap-2.5 rounded-full border-2 py-1.5 pr-4 transition-all ${
                         opt.type === "COLOR" ? "pl-1.5" : "pl-4"
                       } ${
@@ -662,7 +883,14 @@ export default function ProductDetail({ product: p }) {
                           style={{ backgroundColor: colorHex(v.value) }}
                         />
                       )}
-                      <span className="text-sm font-bold">{v.value}</span>
+                      <span className="flex flex-col items-start leading-tight">
+                        <span className="text-sm font-bold">{v.value}</span>
+                        {dims && (
+                          <span className="text-[10px] font-semibold uppercase tracking-wider opacity-70">
+                            {dims}
+                          </span>
+                        )}
+                      </span>
                       {v.priceDelta > 0 && (
                         <span className="text-xs font-semibold opacity-70">
                           +{formatINR(v.priceDelta)}
@@ -699,6 +927,7 @@ export default function ProductDetail({ product: p }) {
                           setSelectedBaseType(type);
                           setSelectedFamilyKey("");
                           setSelectedColorId("");
+                          setSelectedSecondaryColorId("");
                           setOptError("");
                         }}
                         aria-pressed={on}
@@ -736,6 +965,7 @@ export default function ProductDetail({ product: p }) {
                           onClick={() => {
                             setSelectedFamilyKey(fam.key);
                             setSelectedColorId("");
+                            setSelectedSecondaryColorId("");
                             setOptError("");
                           }}
                           aria-pressed={on}
@@ -753,25 +983,95 @@ export default function ProductDetail({ product: p }) {
                 </Section>
               )}
 
-              {/* Step 3: color — only after a family is picked */}
-              {selectedBaseType && selectedFamilyKey && (
+              {/* Step 3: colour mode — only on products that opt in, and only
+                  after a family is picked. Placed before Color so the customer
+                  decides single/dual up front and the Color step can label
+                  itself "Primary colour" when relevant. */}
+              {p.allowDualColor && selectedFamilyKey && (
                 <Section
                   n={String((p.options?.length || 0) + 3).padStart(2, "0")}
+                  title="Colour mode"
+                  value={dualMode ? "Two colours" : "Single colour"}
+                >
+                  <div className="grid gap-2.5 sm:grid-cols-2">
+                    {[
+                      {
+                        key: "SINGLE",
+                        title: "Single colour",
+                        sub: "Same colour for the entire product",
+                      },
+                      {
+                        key: "DUAL",
+                        title: "Two colours",
+                        sub:
+                          p.dualColorSurcharge > 0
+                            ? `Different colours for selected parts · +${formatINR(p.dualColorSurcharge)}`
+                            : "Different colours for selected parts",
+                      },
+                    ].map((mode) => {
+                      const on = colorMode === mode.key;
+                      return (
+                        <button
+                          key={mode.key}
+                          onClick={() => {
+                            setColorMode(mode.key);
+                            if (mode.key === "SINGLE") {
+                              setSelectedSecondaryColorId("");
+                            }
+                            setOptError("");
+                          }}
+                          aria-pressed={on}
+                          className={`flex items-start gap-3 rounded-2xl border-2 p-4 text-left transition-all ${
+                            on
+                              ? "border-ink bg-canvas"
+                              : "border-line hover:border-ink-5"
+                          }`}
+                        >
+                          <span className="flex flex-1 flex-col">
+                            <span className="text-sm font-extrabold text-ink">
+                              {mode.title}
+                            </span>
+                            <span className="mt-1 text-xs text-ink-3">
+                              {mode.sub}
+                            </span>
+                          </span>
+                          {on && (
+                            <Check size={16} weight="bold" className="text-ink" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </Section>
+              )}
+
+              {/* Step 4: color — only after a family is picked. When the
+                  product allows dual colour, this is the Primary colour slot;
+                  the step number shifts by one to keep the sequence contiguous
+                  with the Colour mode step above. */}
+              {selectedBaseType && selectedFamilyKey && (
+                <Section
+                  n={String(
+                    (p.options?.length || 0) +
+                      (p.allowDualColor && selectedFamilyKey ? 4 : 3)
+                  ).padStart(2, "0")}
                   title={
                     <>
-                      Color
+                      {dualMode ? "Primary colour" : "Color"}
                       <span className="ml-1.5 text-xs font-bold text-flame">*</span>
                     </>
                   }
                   value={selectedColor ? selectedColor.name : "Choose one"}
                 >
-                  {colorsInFamily.length === 0 ? (
+                  {primaryColorChoices.length === 0 ? (
                     <p className="text-sm text-ink-3">
-                      No colors in this family yet.
+                      {hasCombos
+                        ? "No colours available for this product in this family."
+                        : "No colors in this family yet."}
                     </p>
                   ) : (
                     <div className="flex flex-wrap gap-2.5">
-                      {colorsInFamily.map((c) => {
+                      {primaryColorChoices.map((c) => {
                         const on = selectedColorId === c.id;
                         const oos = c.stock <= 0;
                         return (
@@ -820,13 +1120,116 @@ export default function ProductDetail({ product: p }) {
                   )}
                 </Section>
               )}
+
+              {/* Step 5: secondary color — only in dual mode. Shares the same
+                  colorsInFamily list as Primary; the Primary color itself is
+                  disabled to prevent picking the same colour twice. */}
+              {dualMode && selectedColorId && (
+                <Section
+                  n={String((p.options?.length || 0) + 5).padStart(2, "0")}
+                  title={
+                    <>
+                      Secondary colour
+                      <span className="ml-1.5 text-xs font-bold text-flame">*</span>
+                    </>
+                  }
+                  value={
+                    selectedSecondaryColor
+                      ? selectedSecondaryColor.name
+                      : "Choose one"
+                  }
+                >
+                  {secondaryColorChoices.length === 0 ? (
+                    <p className="text-sm text-ink-3">
+                      No valid secondary colours for this primary. Try a
+                      different primary colour.
+                    </p>
+                  ) : (
+                  <div className="flex flex-wrap gap-2.5">
+                    {secondaryColorChoices.map((c) => {
+                      const on = selectedSecondaryColorId === c.id;
+                      const isPrimary = selectedColorId === c.id;
+                      const oos = c.stock <= 0 || isPrimary;
+                      return (
+                        <button
+                          key={`sec-${c.filamentId}-${c.id}`}
+                          onClick={() => {
+                            if (oos) return;
+                            setSelectedSecondaryColorId(c.id);
+                            setOptError("");
+                          }}
+                          disabled={oos}
+                          aria-pressed={on}
+                          title={
+                            isPrimary
+                              ? `${c.name} is already the primary colour`
+                              : c.stock <= 0
+                                ? `${c.name} — Out of stock`
+                                : `${c.name}${c.finish ? ` · ${c.finish}` : ""} · Stock: ${c.stock}`
+                          }
+                          className={`group flex items-center gap-2.5 rounded-full border-2 py-1.5 pl-1.5 pr-4 transition-all ${
+                            oos
+                              ? "cursor-not-allowed border-line opacity-40"
+                              : on
+                                ? "border-ink bg-ink text-white"
+                                : "border-line text-ink-2 hover:border-ink-5"
+                          }`}
+                        >
+                          <SilkSwatch color={c} />
+                          <span className="flex flex-col items-start leading-tight">
+                            <span className="text-sm font-bold">{c.name}</span>
+                            {c.finish && (
+                              <span className="text-[10px] font-semibold uppercase tracking-wider opacity-70">
+                                {c.finish}
+                              </span>
+                            )}
+                          </span>
+                          {isPrimary && (
+                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-ink-4">
+                              Primary
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  )}
+                </Section>
+              )}
+
+              {/* Selected Combination — shown once both colours are picked in
+                  dual mode. Mirrors the summary strip in the user's reference. */}
+              {dualMode && selectedColor && selectedSecondaryColor && (
+                <div className="mt-6 flex items-center gap-3 rounded-2xl bg-canvas px-4 py-3">
+                  <div className="flex -space-x-2">
+                    <span className="relative z-10">
+                      <SilkSwatch color={selectedColor} />
+                    </span>
+                    <span>
+                      <SilkSwatch color={selectedSecondaryColor} />
+                    </span>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-ink-4">
+                      Selected combination
+                    </p>
+                    <p className="mt-0.5 truncate text-sm font-bold text-ink">
+                      {selectedBaseType} · {selectedColor.name} (Primary) ·{" "}
+                      {selectedSecondaryColor.name} (Secondary)
+                    </p>
+                  </div>
+                </div>
+              )}
             </>
           )}
 
           {/* ── Quantity + tiers ── */}
           <Section
             n={String(
-              (p.options?.length || 0) + (hasFilaments ? 4 : 1)
+              (p.options?.length || 0) +
+                (hasFilaments ? 4 : 1) +
+                (p.allowDualColor && selectedFamilyKey ? 1 : 0) +
+                (dualMode && selectedColorId ? 1 : 0)
             ).padStart(2, "0")}
             title="How many?"
             value={`${qty} unit${qty > 1 ? "s" : ""}`}

@@ -56,6 +56,14 @@ export const COLORS = [
   { name: "Blue", hex: "#3b82f6" },
   { name: "Green", hex: "#22c55e" },
   { name: "Yellow", hex: "#eab308" },
+  { name: "Orange", hex: "#f97316" },
+  { name: "Pink", hex: "#ec4899" },
+  { name: "Purple", hex: "#a855f7" },
+  { name: "Brown", hex: "#92400e" },
+  { name: "Grey", hex: "#6b7280" },
+  { name: "Gray", hex: "#6b7280" },
+  { name: "Gold", hex: "#f59e0b" },
+  { name: "Silver", hex: "#c0c0c0" },
 ];
 
 export const colorHex = (name) => {
