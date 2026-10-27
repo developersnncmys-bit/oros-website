@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Lightning, Eye, Check, X, Plus } from "@phosphor-icons/react";
 import ProductImage from "@/components/ProductImage";
 import { useCartStore, useInCart } from "@/store/cartStore";
-import { useAuthStore, useUser } from "@/store/authStore";
 import { formatINR, discountPct, colorHex } from "@/lib/format";
 
 export function PriceBlock({ product, size = "md" }) {
@@ -46,8 +45,6 @@ export default function ProductCard({
   priority = false,
 }) {
   const add = useCartStore((s) => s.add);
-  const token = useAuthStore((s) => s.token);
-  const { isSignedIn, isCustomer } = useUser();
   const art = useRef(null);
 
   const options = p.options || [];
@@ -80,20 +77,11 @@ export default function ProductCard({
     e.stopPropagation();
   };
 
-  // auth gates + the actual cart push, shared by both paths
+  // cartStore.add() is the single auth gate: a signed-out add is stashed
+  // as pendingAdd and replayed by flushPendingAdd() after login, and a
+  // non-customer add fires oros:require-customer. Duplicating those checks
+  // here previously swallowed the attempt before it could be stashed.
   const commit = (chosen) => {
-    if (!token) {
-      window.dispatchEvent(new CustomEvent("oros:require-auth"));
-      return false;
-    }
-    if (isSignedIn && !isCustomer) {
-      window.dispatchEvent(
-        new CustomEvent("oros:require-customer", {
-          detail: { message: "Cart is for customer accounts only." },
-        })
-      );
-      return false;
-    }
     add(p, {
       options: chosen,
       qty: p.minQty || 1,

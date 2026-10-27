@@ -25,7 +25,6 @@ import { gsap, useGSAP, prefersReducedMotion } from "@/lib/gsap";
 import ProductImage from "@/components/ProductImage";
 import { trackProductView } from "@/api/view.api";
 import { useCartStore, useInCart } from "@/store/cartStore";
-import { useAuthStore, useUser } from "@/store/authStore";
 import { formatINR, colorHex, unitPriceFor } from "@/lib/format";
 
 // at this quantity the PDP nudges the customer into the bulk-quote flow
@@ -35,8 +34,6 @@ export default function ProductDetail({ product: p }) {
   const router = useRouter();
   const add = useCartStore((s) => s.add);
   const openDrawer = useCartStore((s) => s.openDrawer);
-  const token = useAuthStore((s) => s.token);
-  const { isSignedIn, isCustomer } = useUser();
 
   // one selected value per option, keyed by option name. Nothing is
   // pre-selected — if a product has variants the customer must pick each
@@ -448,17 +445,6 @@ export default function ProductDetail({ product: p }) {
   );
 
   const doAdd = (thenCheckout = false) => {
-    if (!token) {
-      setOptError("");
-      window.dispatchEvent(new CustomEvent("oros:require-auth"));
-      return false;
-    }
-    if (isSignedIn && !isCustomer) {
-      setOptError(
-        "Cart and checkout are for customer accounts only. Sign in with a customer account to shop."
-      );
-      return false;
-    }
     const missing = missingOption();
     if (missing) {
       setOptError(`Please select ${missing.name} before adding to cart`);
@@ -470,17 +456,23 @@ export default function ProductDetail({ product: p }) {
       if (!thenCheckout) openDrawer();
       return true;
     }
-    add(p, {
-      options: selectedOptions(),
-      qty,
-      origin: thenCheckout
-        ? null
-        : art.current?.getBoundingClientRect(),
-      // buy-now heads straight to checkout — no need to flash the cart
-      // drawer open behind it
-      openCart: !thenCheckout,
-    });
-    return true;
+    // cartStore.add() handles auth: a signed-out add is stashed as
+    // pendingAdd and replayed by flushPendingAdd() after login, and a
+    // non-customer add fires oros:require-customer. Returns true only
+    // when the item actually landed in the cart — so buy-now won't
+    // navigate on a pending/blocked add.
+    return (
+      add(p, {
+        options: selectedOptions(),
+        qty,
+        origin: thenCheckout
+          ? null
+          : art.current?.getBoundingClientRect(),
+        // buy-now heads straight to checkout — no need to flash the cart
+        // drawer open behind it
+        openCart: !thenCheckout,
+      }) === true
+    );
   };
 
   const handleAdd = () => {

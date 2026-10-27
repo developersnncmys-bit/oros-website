@@ -136,12 +136,12 @@ export default function Header() {
         <div className="flex items-center gap-3 lg:gap-6">
           <Link href="/" aria-label="OROS — home" className="group shrink-0">
             <Image
-              src="/brand/oros-logo-white.png"
+              src="/brand/oros-new-logo.png"
               alt="OROS"
               width={150}
               height={100}
               preload
-              className="h-17 w-40 rounded-xl object-contain p-1 transition-all duration-300"
+              className="h-27 w-40 rounded-xl object-contain p-1 transition-all duration-300"
             />
           </Link>
 

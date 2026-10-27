@@ -64,11 +64,11 @@ export default async function Footer() {
           <div>
             <Link href="/" aria-label="OROS — home" className="inline-block">
               <Image
-                src="/brand/oros-logo-white.png"
+                src="/brand/oros-new-logo.png"
                 alt="OROS"
                 width={150}
                 height={100}
-                className="h-28 w-28 rounded-xl object-contain p-1.5 lg:h-32 lg:w-32"
+                className="h-40 w-40 rounded-xl object-contain p-1.5 lg:h-48 lg:w-48"
               />
             </Link>
 
