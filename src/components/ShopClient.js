@@ -337,7 +337,7 @@ export default function ShopClient({ initial = null }) {
       {/* ══ Filter bar ══ */}
       <div
         ref={bar}
-        className="sticky top-[99px] z-30 -mx-4 flex flex-wrap items-center gap-2 border-y border-line bg-canvas px-4 py-3 lg:mx-0 lg:rounded-xl lg:border"
+        className="sticky top-34 z-30 -mx-4 flex flex-wrap items-center gap-2 border-y border-line bg-canvas px-4 py-3 sm:top-19 lg:mx-0 lg:rounded-xl lg:border"
       >
         <span className="hidden text-xs font-bold uppercase tracking-[0.14em] text-ink-4 lg:block">
           Filter
