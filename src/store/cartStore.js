@@ -258,11 +258,14 @@ export const useCartStore = create(
         if (!tokenStore.get() || !isCustomerRole(currentRole())) return;
         set({ pendingAdd: null });
         // the pre-login click's DOM rect is stale after the modal, so skip
-        // `origin` and let `openCart` surface the add via the drawer
+        // `origin`. Always open the drawer here — even a stashed buy-now
+        // click (openCart: false) can't resume its checkout navigation
+        // across login, so the drawer is the only feedback the shopper
+        // gets that their click landed.
         get().add(pending.product, {
           options: pending.options,
           qty: pending.qty,
-          openCart: pending.openCart !== false,
+          openCart: true,
         });
       },
 
