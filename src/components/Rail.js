@@ -4,6 +4,7 @@ import { useRef, useState, useEffect } from "react";
 import Link from "next/link";
 import { CaretLeft, CaretRight } from "@phosphor-icons/react";
 import ProductCard from "@/components/ProductCard";
+import { scrollToTop } from "@/lib/scrollTop";
 
 /**
  * Horizontal product row. Arrows page by roughly one viewport of the track,
@@ -75,6 +76,11 @@ export default function Rail({
                 key={p.slug}
                 product={p}
                 showOptions={showOptions}
+                // Next.js preserves scroll position for same-pattern routes
+                // (e.g. /shop/A → /shop/B), and Lenis hijacks window.scrollTo
+                // so the native scroll-to-top never lands. Jump through
+                // Lenis before navigation so the next page opens at the top.
+                onNavigate={scrollToTop}
                 className="w-[calc(50%-6px)] shrink-0 snap-start sm:w-[calc(33.333%-8px)] lg:w-[calc(20%-10px)]"
               />
             ))}
