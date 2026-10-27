@@ -60,7 +60,7 @@ export default function Rail({
           </div>
           <Link
             href={href}
-            className="shrink-0 rounded-md bg-flame px-5 py-2.5 text-xs font-extrabold uppercase tracking-wide text-white transition-colors hover:bg-flame-dk lg:text-sm"
+            className="shrink-0 rounded-md bg-flame px-5 py-2.5 text-xs font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-flame-dk lg:text-sm"
           >
             View all
           </Link>

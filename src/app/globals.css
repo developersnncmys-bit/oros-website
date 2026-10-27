@@ -24,12 +24,15 @@
   --color-cream: #fbf7f0;
   --color-cream-2: #f5eee2;
 
-  /* Brand — molten filament orange */
-  --color-flame: #ff5a2c;
-  --color-flame-dk: #e6421a;
-  --color-flame-lt: #fff1ec;
+  /* Brand — amber. Primary CTAs (bg-flame) and the commerce
+     amber (bg-gold) now share the same hue so every button on the
+     site reads as #ffb627 without touching per-component classes. */
+  --color-flame: #ffb627;
+  --color-flame-dk: #f0a20d;
+  --color-flame-lt: #fff6e4;
 
-  /* Commerce actions — amber adds to cart, flame buys now */
+  /* Commerce actions — kept as the same tokens so `bg-gold` keeps
+     meaning the same thing semantically. */
   --color-gold: #ffb627;
   --color-gold-dk: #f0a20d;
   --color-gold-lt: #fff6e4;

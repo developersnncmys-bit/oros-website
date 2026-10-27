@@ -462,7 +462,7 @@ export default function ShopClient({ initial = null }) {
           </p>
           <Link
             href="/shop"
-            className="mt-6 rounded-lg bg-flame px-6 py-2.5 text-sm font-extrabold text-white transition-colors hover:bg-flame-dk"
+            className="mt-6 rounded-lg bg-flame px-6 py-2.5 text-sm font-extrabold text-ink transition-colors hover:bg-flame-dk"
           >
             View everything
           </Link>
@@ -664,7 +664,7 @@ function FilterButton({ label, count, open, onToggle, wide, align = "left", chil
       >
         {label}
         {count > 0 && (
-          <span className="grid h-4 min-w-4 place-items-center rounded-full bg-flame px-1 text-[10px] text-white">
+          <span className="grid h-4 min-w-4 place-items-center rounded-full bg-flame px-1 text-[10px] text-ink">
             {count}
           </span>
         )}

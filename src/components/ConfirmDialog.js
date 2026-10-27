@@ -40,7 +40,7 @@ export function useConfirm() {
           </button>
           <button
             onClick={() => settle(true)}
-            className="rounded-md bg-flame px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-flame-dk"
+            className="rounded-md bg-flame px-4 py-2 text-xs font-bold text-ink transition-colors hover:bg-flame-dk"
           >
             {state.confirmLabel}
           </button>

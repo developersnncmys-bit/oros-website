@@ -19,7 +19,7 @@ const TONE = {
     bg: "bg-cream",
     sub: "text-ink-2",
     kicker: "bg-ink/10 text-ink",
-    cta: "bg-ink text-white hover:bg-flame",
+    cta: "bg-ink text-white hover:bg-flame hover:text-ink",
   },
   dark: {
     bg: "bg-navy",

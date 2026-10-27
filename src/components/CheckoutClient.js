@@ -622,7 +622,7 @@ export default function CheckoutClient() {
                     </div>
                     <button
                       onClick={() => applyCoupon(c.code)}
-                      className="rounded bg-flame px-3 py-1.5 text-[11px] font-extrabold uppercase text-white hover:bg-flame-dk"
+                      className="rounded bg-flame px-3 py-1.5 text-[11px] font-extrabold uppercase text-ink hover:bg-flame-dk"
                     >
                       Apply
                     </button>
@@ -689,7 +689,7 @@ export default function CheckoutClient() {
               <button
                 onClick={payNow}
                 disabled={placing}
-                className="w-full rounded-md bg-flame py-4 text-sm font-extrabold uppercase tracking-wide text-white transition-colors hover:bg-flame-dk disabled:opacity-60"
+                className="w-full rounded-md bg-flame py-4 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-flame-dk disabled:opacity-60"
               >
                 {placing
                   ? "Processing…"
@@ -802,7 +802,7 @@ function OrderPlaced({ order }) {
           </Link>
           <Link
             href="/shop"
-            className="rounded-md bg-flame px-6 py-3.5 text-sm font-extrabold uppercase tracking-wide text-white transition-colors hover:bg-flame-dk"
+            className="rounded-md bg-flame px-6 py-3.5 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-flame-dk"
           >
             Keep shopping
           </Link>
@@ -827,7 +827,7 @@ function EmptyState() {
         </p>
         <Link
           href="/shop"
-          className="mt-7 rounded-md bg-flame px-8 py-3.5 text-sm font-extrabold uppercase tracking-wide text-white transition-colors hover:bg-flame-dk"
+          className="mt-7 rounded-md bg-flame px-8 py-3.5 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-flame-dk"
         >
           Shop now
         </Link>

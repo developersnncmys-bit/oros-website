@@ -431,7 +431,7 @@ function Quotations({ quotes, loading, productMap, onChange }) {
         <div className="mt-4 flex justify-center gap-3">
           <Link
             href="/custom"
-            className="rounded-md bg-flame px-6 py-2.5 text-sm font-extrabold uppercase tracking-wide text-white hover:bg-flame-dk"
+            className="rounded-md bg-flame px-6 py-2.5 text-sm font-extrabold uppercase tracking-wide text-ink hover:bg-flame-dk"
           >
             Start a custom order
           </Link>
@@ -477,7 +477,7 @@ function Orders({
         </p>
         <Link
           href="/shop"
-          className="mt-4 inline-block rounded-md bg-flame px-6 py-2.5 text-sm font-extrabold uppercase tracking-wide text-white hover:bg-flame-dk"
+          className="mt-4 inline-block rounded-md bg-flame px-6 py-2.5 text-sm font-extrabold uppercase tracking-wide text-ink hover:bg-flame-dk"
         >
           Start shopping
         </Link>
@@ -733,7 +733,7 @@ function OrderRow({ order, expanded = false, onCancel, onChange, quotesById }) {
           <button
             onClick={pay}
             disabled={paying}
-            className="rounded-md bg-flame px-4 py-2 text-xs font-extrabold uppercase tracking-wide text-white transition-colors hover:bg-flame-dk disabled:opacity-60"
+            className="rounded-md bg-flame px-4 py-2 text-xs font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-flame-dk disabled:opacity-60"
           >
             {paying
               ? "Opening…"
@@ -891,7 +891,7 @@ function ProfileForm() {
         <button
           type="submit"
           disabled={saving}
-          className="rounded-md bg-flame px-6 py-3 text-sm font-extrabold uppercase tracking-wide text-white transition-colors hover:bg-flame-dk disabled:opacity-60"
+          className="rounded-md bg-flame px-6 py-3 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-flame-dk disabled:opacity-60"
         >
           {saving ? "Saving…" : "Save changes"}
         </button>

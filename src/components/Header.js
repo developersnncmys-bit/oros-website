@@ -141,7 +141,7 @@ export default function Header() {
               width={150}
               height={100}
               preload
-              className="h-27 w-40 rounded-xl object-contain p-1 transition-all duration-300"
+              className="h-20 w-58h rounded-xl object-contain transition-all duration-300"
             />
           </Link>
 
@@ -216,40 +216,29 @@ export default function Header() {
         </div>
 
         {/* ══ Category rail ══ */}
-        <nav
-          className={`relative overflow-hidden rounded-2xl border-neon/25 bg-night-2 px-2 transition-all duration-200 ease-out ${
-            compact
-              ? "mt-0 max-h-0 border-0 opacity-0"
-              : "mt-3 max-h-40 border opacity-100"
+        {/* Wrapper carries the compact animation and the relative anchor the
+            arrow buttons use — arrows sit OUTSIDE the nav (negative offsets)
+            so hexes can fill the box edge-to-edge instead of leaving a
+            padded gutter for the controls. */}
+        <div
+          className={`relative transition-all duration-200 ease-out ${
+            compact ? "mt-0 max-h-0 opacity-0" : "mt-3 max-h-40 opacity-100"
           }`}
         >
-          {needsSlider && canLeft && (
-            <button
-              onClick={() => pageRail(-1)}
-              aria-label="Scroll categories left"
-              className="absolute left-1 top-1/2 z-10 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full bg-night text-white shadow-lg ring-1 ring-neon/40 hover:bg-night-2"
-            >
-              <CaretLeft size={16} weight="bold" />
-            </button>
-          )}
-          {needsSlider && canRight && (
-            <button
-              onClick={() => pageRail(1)}
-              aria-label="Scroll categories right"
-              className="absolute right-1 top-1/2 z-10 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full bg-night text-white shadow-lg ring-1 ring-neon/40 hover:bg-night-2"
-            >
-              <CaretRight size={16} weight="bold" />
-            </button>
-          )}
+          <nav
+            className={`overflow-hidden rounded-2xl border-neon/25 bg-night-2 ${
+              compact ? "border-0" : "border"
+            }`}
+          >
 
           <ul
             ref={rail}
-            className={`no-scrollbar flex w-full items-start gap-0 overflow-x-auto px-1 py-2.5 ${
-              needsSlider ? "justify-start scroll-smooth" : "justify-center"
+            className={`no-scrollbar flex w-full items-start gap-0 overflow-x-auto py-2.5 ${
+              needsSlider ? "snap-x snap-mandatory justify-start scroll-smooth" : "justify-center"
             }`}
           >
             {categories.map((c) => (
-              <li key={c.slug} className="w-[128px] shrink-0">
+              <li key={c.slug} className="w-[128px] shrink-0 snap-start">
                 <Link
                   href={`/shop?category=${c.slug}`}
                   title={c.name}
@@ -268,7 +257,27 @@ export default function Header() {
               </li>
             ))}
           </ul>
-        </nav>
+          </nav>
+
+          {needsSlider && canLeft && (
+            <button
+              onClick={() => pageRail(-1)}
+              aria-label="Scroll categories left"
+              className="absolute -left-4 top-1/2 z-10 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full bg-night text-white shadow-lg ring-1 ring-neon/40 hover:bg-night-2"
+            >
+              <CaretLeft size={16} weight="bold" />
+            </button>
+          )}
+          {needsSlider && canRight && (
+            <button
+              onClick={() => pageRail(1)}
+              aria-label="Scroll categories right"
+              className="absolute -right-4 top-1/2 z-10 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full bg-night text-white shadow-lg ring-1 ring-neon/40 hover:bg-night-2"
+            >
+              <CaretRight size={16} weight="bold" />
+            </button>
+          )}
+        </div>
       </div>
     </header>
   );

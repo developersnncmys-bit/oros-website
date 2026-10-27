@@ -226,7 +226,7 @@ export default function CartClient() {
             <div className="px-5 pb-5">
               <button
                 onClick={() => router.push("/checkout")}
-                className="w-full rounded-md bg-flame py-4 text-sm font-extrabold uppercase tracking-wide text-white transition-colors hover:bg-flame-dk"
+                className="w-full rounded-md bg-flame py-4 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-flame-dk"
               >
                 Place order
               </button>
@@ -271,7 +271,7 @@ function EmptyCart() {
         </p>
         <Link
           href="/shop"
-          className="mt-7 rounded-md bg-flame px-8 py-3.5 text-sm font-extrabold uppercase tracking-wide text-white transition-colors hover:bg-flame-dk"
+          className="mt-7 rounded-md bg-flame px-8 py-3.5 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-flame-dk"
         >
           Shop now
         </Link>

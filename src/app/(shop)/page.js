@@ -84,7 +84,7 @@ export default async function Home() {
               </div>
               <Link
                 href="/shop"
-                className="shrink-0 rounded-md bg-flame px-5 py-2.5 text-xs font-extrabold uppercase tracking-wide text-white transition-colors hover:bg-flame-dk lg:text-sm"
+                className="shrink-0 rounded-md bg-flame px-5 py-2.5 text-xs font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-flame-dk lg:text-sm"
               >
                 Shop now
               </Link>
@@ -156,7 +156,7 @@ export default async function Home() {
                 qualifies — no negotiation needed.
               </p>
             </div>
-            <span className="relative inline-flex shrink-0 items-center gap-2 rounded-md bg-flame px-7 py-3.5 text-sm font-extrabold text-white transition-colors group-hover:bg-gold group-hover:text-ink">
+            <span className="relative inline-flex shrink-0 items-center gap-2 rounded-md bg-flame px-7 py-3.5 text-sm font-extrabold text-ink transition-colors group-hover:bg-gold group-hover:text-ink">
               Get a bulk quote
               <ArrowRight
                 size={16}
