@@ -63,13 +63,24 @@ export default function ProductDetail({ product: p }) {
   const filamentsList = p.filaments || [];
   const hasFilaments = filamentsList.length > 0;
 
-  const baseTypes = useMemo(
-    () =>
-      [
-        ...new Set(filamentsList.map((f) => f.type).filter(Boolean)),
-      ].sort(),
-    [filamentsList]
-  );
+  // Preferred display order for the common base filaments; anything not
+  // listed drops to the end alphabetically. Avoids alphabetical sort putting
+  // ABS/ASA ahead of PLA, which doesn't match how customers think about
+  // filament tiers.
+  const BASE_ORDER = ["PLA", "PETG", "ABS", "ASA"];
+  const baseTypes = useMemo(() => {
+    const unique = [
+      ...new Set(filamentsList.map((f) => f.type).filter(Boolean)),
+    ];
+    return unique.sort((a, b) => {
+      const ai = BASE_ORDER.indexOf(a);
+      const bi = BASE_ORDER.indexOf(b);
+      if (ai === -1 && bi === -1) return a.localeCompare(b);
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    });
+  }, [filamentsList]);
 
   const filamentsInBase = useMemo(
     () => filamentsList.filter((f) => f.type === selectedBaseType),

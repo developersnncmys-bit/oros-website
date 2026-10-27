@@ -132,7 +132,7 @@ export default function Header() {
         }}
       />
 
-      <div className="relative w-full px-6 py-1 lg:px-16">
+      <div className="relative mx-auto max-w-[1350px] px-6 py-1 lg:px-8">
         <div className="flex items-center gap-3 lg:gap-6">
           <Link href="/" aria-label="OROS — home" className="group shrink-0">
             <Image
@@ -141,7 +141,7 @@ export default function Header() {
               width={150}
               height={100}
               preload
-              className="h-20 w-20 rounded-xl object-contain p-1 transition-all duration-300 lg:h-28 lg:w-28"
+              className="h-17 w-40 rounded-xl object-contain p-1 transition-all duration-300"
             />
           </Link>
 
