@@ -156,7 +156,7 @@ export default function Header() {
             <Link
               href="/custom"
               title="Custom order"
-              className="group hidden w-[160px] shrink-0 flex-row items-center gap-2 rounded-xl border border-gold/60 px-2 py-1.5 transition-all duration-300 hover:scale-110 hover:bg-gold/10 xl:flex"
+              className="group hidden w-[160px] shrink-0 flex-row items-center justify-center gap-2 rounded-xl border border-gold/60 px-2 py-1.5 transition-all duration-300 hover:scale-110 hover:bg-gold/10 xl:flex"
             >
               <span
                 className="relative grid h-[54px] w-[48px] shrink-0 place-items-center transition-transform duration-300 group-hover:scale-105"
@@ -164,7 +164,7 @@ export default function Header() {
               >
                 <Crown size={22} className="text-gold" weight="fill" />
               </span>
-              <span className="block min-w-0 flex-1 text-left leading-tight">
+              <span className="block min-w-0 text-center leading-tight">
                 <span className="block text-[9px] font-extrabold uppercase tracking-[0.22em] text-gold">
                   OROS
                 </span>
