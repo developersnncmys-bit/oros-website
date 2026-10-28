@@ -224,8 +224,11 @@ export default function Header() {
             so hexes can fill the box edge-to-edge instead of leaving a
             padded gutter for the controls. */}
         <div
+          aria-hidden={compact ? "true" : undefined}
           className={`relative transition-all duration-200 ease-out ${
-            compact ? "mt-0 max-h-0 opacity-0" : "mt-3 max-h-40 opacity-100"
+            compact
+              ? "pointer-events-none mt-0 max-h-0 opacity-0"
+              : "mt-3 max-h-40 opacity-100"
           }`}
         >
           <nav
@@ -258,7 +261,13 @@ export default function Header() {
                 >
                   <HexImage src={c.image} alt={c.name} />
                   <span className="block w-full min-w-0 text-center leading-tight">
-                    <span className="block text-[9px] font-extrabold uppercase tracking-[0.22em] text-neon">
+                    {/* Spacer — matches the removed "OROS" kicker's height so
+                        the category name keeps its old vertical position
+                        without the uppercase word rendering. */}
+                    <span
+                      aria-hidden="true"
+                      className="block text-[9px] font-extrabold uppercase tracking-[0.22em] invisible"
+                    >
                       OROS
                     </span>
                     <span className="mt-0.5 block w-full truncate text-[13px] font-semibold text-white/90 group-hover:text-white">

@@ -1268,31 +1268,6 @@ export default function ProductDetail({ product: p }) {
                   <Plus size={16} weight="bold" />
                 </button>
               </div>
-
-              <div className="flex flex-wrap gap-1.5">
-                {[25, 50, 75].map((n) => (
-                  <button
-                    key={n}
-                    onClick={() => setQty(n)}
-                    className={`rounded-lg border px-3 py-2 text-xs font-bold transition-colors ${
-                      qty === n
-                        ? "border-neon bg-neon/10 text-neon"
-                        : "border-line text-ink-2 hover:border-flame hover:text-flame"
-                    }`}
-                  >
-                    {n}
-                  </button>
-                ))}
-                {tiers.slice(1).map((t) => (
-                  <button
-                    key={t.minQty}
-                    onClick={() => setQty(t.minQty)}
-                    className="rounded-lg border border-line px-3 py-2 text-xs font-bold text-ink-2 transition-colors hover:border-flame hover:text-flame"
-                  >
-                    {t.minQty}
-                  </button>
-                ))}
-              </div>
             </div>
 
             {tiers.length > 1 && (
@@ -1477,11 +1452,7 @@ export default function ProductDetail({ product: p }) {
                 ))}
               </div>
               <Link
-                href={`/bulk?product=${p.slug || p.id}&qty=${Math.max(
-                  qty,
-                  BULK_THRESHOLD
-                )}${bulkOptsParam}`}
-                onClick={guardBulk}
+                href="/custom"
                 className="mt-5 inline-flex items-center gap-2 rounded-xl bg-gold px-5 py-3 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-gold-dk"
               >
                 Get a bulk quote

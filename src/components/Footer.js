@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import {
-  Truck,
+  Palette,
   Printer,
   Cube,
   Tag,
@@ -23,7 +23,7 @@ export default async function Footer() {
   const FACTS = [
     { icon: Cube, value: productCount, label: "objects in the catalogue" },
     { icon: Printer, value: 40, label: "printers on the floor" },
-    { icon: Truck, value: "48h", label: "dispatch on in-stock items" },
+    { icon: Palette, value: "50+", label: "colours & finishes on request" },
     { icon: Tag, value: "40%", label: "off per unit at 500+" },
   ];
 
