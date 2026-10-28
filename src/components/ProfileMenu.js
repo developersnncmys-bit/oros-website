@@ -436,7 +436,7 @@ export default function ProfileMenu() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full rounded-lg bg-flame py-3.5 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-flame-dk disabled:opacity-60"
+                  className="w-full rounded-lg bg-gold py-3.5 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-gold-dk disabled:opacity-60"
                 >
                   {loading ? "Verifying…" : "Verify & continue"}
                 </button>
@@ -511,7 +511,7 @@ export default function ProfileMenu() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full rounded-lg bg-flame py-3 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-flame-dk disabled:opacity-60"
+                  className="w-full rounded-lg bg-gold py-3 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-gold-dk disabled:opacity-60"
                 >
                   {loading
                     ? mode === "register"
@@ -573,7 +573,7 @@ export default function ProfileMenu() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full rounded-lg bg-flame py-3 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-flame-dk disabled:opacity-60"
+                  className="w-full rounded-lg bg-gold py-3 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-gold-dk disabled:opacity-60"
                 >
                   {loading ? "Sending…" : "Send code"}
                 </button>

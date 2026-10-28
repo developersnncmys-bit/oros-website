@@ -437,7 +437,7 @@ export default function QuotationThread({
             <button
               onClick={send}
               disabled={busy || (!text.trim() && files.length === 0)}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-flame px-4 py-2 text-xs font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-flame-dk disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-gold px-4 py-2 text-xs font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-gold-dk disabled:opacity-50"
             >
               <PaperPlaneRight size={13} weight="fill" />
               {busy ? "Sending…" : "Send"}
@@ -487,7 +487,7 @@ export default function QuotationThread({
           <button
             onClick={pay}
             disabled={paying}
-            className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-flame py-3.5 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-flame-dk disabled:opacity-60"
+            className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gold py-3.5 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-gold-dk disabled:opacity-60"
           >
             <ShieldCheck size={16} weight="fill" />
             {paying ? "Processing…" : `Pay ${formatINR(q.total || 0)}`}

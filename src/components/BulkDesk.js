@@ -696,7 +696,7 @@ export default function BulkDesk() {
               </button>
               <a
                 href="#enquiry"
-                className="inline-flex items-center gap-2 rounded-xl bg-flame px-5 py-3 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-flame-dk"
+                className="inline-flex items-center gap-2 rounded-xl bg-gold px-5 py-3 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-gold-dk"
               >
                 Continue to details
                 <CaretRight size={14} weight="bold" />
@@ -1094,7 +1094,7 @@ export default function BulkDesk() {
               <button
                 type="submit"
                 disabled={sending}
-                className="h-12 rounded-xl bg-flame px-8 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-flame-dk disabled:opacity-60 sm:col-span-2"
+                className="h-12 rounded-xl bg-gold px-8 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-gold-dk disabled:opacity-60 sm:col-span-2"
               >
                 {sending
                   ? "Sending…"

@@ -82,7 +82,9 @@ export default function Header() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const needsSlider = categories.length > 12;
+  // Design cap: at most 11 hexes visible at once; anything beyond scrolls.
+  const VISIBLE_COUNT = 11;
+  const needsSlider = categories.length > VISIBLE_COUNT;
 
   const syncRail = () => {
     const el = rail.current;
@@ -106,7 +108,8 @@ export default function Header() {
   const pageRail = (dir) => {
     const el = rail.current;
     if (!el) return;
-    el.scrollBy({ left: dir * 104, behavior: "smooth" });
+    // Slide exactly one hex at a time (ul viewport fits VISIBLE_COUNT).
+    el.scrollBy({ left: dir * (el.clientWidth / VISIBLE_COUNT), behavior: "smooth" });
   };
 
   useGSAP(
@@ -132,7 +135,7 @@ export default function Header() {
         }}
       />
 
-      <div className="relative mx-auto max-w-[1350px] px-6 py-1 lg:px-8">
+      <div className="relative mx-auto max-w-[1600px] px-4 py-1 lg:px-8">
         <div className="flex items-center gap-3 lg:gap-6">
           <Link href="/" aria-label="OROS — home" className="group shrink-0">
             <Image
@@ -238,7 +241,16 @@ export default function Header() {
             }`}
           >
             {categories.map((c) => (
-              <li key={c.slug} className="w-[128px] shrink-0 snap-start">
+              <li
+                key={c.slug}
+                // Each hex takes exactly 1/11 of the ul when the slider is
+                // active, so only 11 fit in view at a time and the arrows
+                // (which scrollBy clientWidth / 11) advance one item per
+                // click. With 11 or fewer, items keep their natural width.
+                className={`shrink-0 snap-start ${
+                  needsSlider ? "w-[calc(100%/11)]" : "w-32"
+                }`}
+              >
                 <Link
                   href={`/shop?category=${c.slug}`}
                   title={c.name}

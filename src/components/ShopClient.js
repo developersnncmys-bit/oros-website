@@ -462,7 +462,7 @@ export default function ShopClient({ initial = null }) {
           </p>
           <Link
             href="/shop"
-            className="mt-6 rounded-lg bg-flame px-6 py-2.5 text-sm font-extrabold text-ink transition-colors hover:bg-flame-dk"
+            className="mt-6 rounded-lg bg-gold px-6 py-2.5 text-sm font-extrabold text-ink transition-colors hover:bg-gold-dk"
           >
             View everything
           </Link>
@@ -664,7 +664,7 @@ function FilterButton({ label, count, open, onToggle, wide, align = "left", chil
       >
         {label}
         {count > 0 && (
-          <span className="grid h-4 min-w-4 place-items-center rounded-full bg-flame px-1 text-[10px] text-ink">
+          <span className="grid h-4 min-w-4 place-items-center rounded-full bg-gold px-1 text-[10px] text-ink">
             {count}
           </span>
         )}
@@ -698,7 +698,7 @@ function Option({ label, checked, onChange }) {
     >
       <span
         className={`grid h-4 w-4 shrink-0 place-items-center rounded border-2 ${
-          checked ? "border-flame bg-flame" : "border-ink-5"
+          checked ? "border-flame bg-gold" : "border-ink-5"
         }`}
       >
         {checked && <Check size={10} weight="bold" className="text-white" />}

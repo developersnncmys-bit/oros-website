@@ -348,7 +348,7 @@ export default function NotificationBell() {
                               className={`rounded px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide ${
                                 n.isRead
                                   ? "bg-canvas text-ink-4"
-                                  : "bg-flame text-ink"
+                                  : "bg-gold text-ink"
                               }`}
                             >
                               {n.isRead ? "Read" : "Unread"}

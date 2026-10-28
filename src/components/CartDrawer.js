@@ -347,7 +347,7 @@ export default function CartDrawer() {
               <Link
                 href="/checkout"
                 onClick={closeDrawer}
-                className="rounded-md bg-flame py-3 text-center text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-flame-dk"
+                className="rounded-md bg-gold py-3 text-center text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-gold-dk"
               >
                 Checkout
               </Link>
@@ -375,7 +375,7 @@ function EmptyDrawer({ onClose }) {
       <Link
         href="/shop"
         onClick={onClose}
-        className="mt-6 rounded-md bg-flame px-6 py-2.5 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-flame-dk"
+        className="mt-6 rounded-md bg-gold px-6 py-2.5 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-gold-dk"
       >
         Shop now
       </Link>

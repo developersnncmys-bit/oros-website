@@ -1385,7 +1385,7 @@ export default function ProductDetail({ product: p }) {
               </button>
               <button
                 onClick={handleBuy}
-                className="flex items-center justify-center gap-2 rounded-xl bg-flame py-4 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-flame-dk"
+                className="flex items-center justify-center gap-2 rounded-xl bg-gold py-4 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-gold-dk"
               >
                 <Lightning size={17} weight="fill" />
                 Buy now
@@ -1482,7 +1482,7 @@ export default function ProductDetail({ product: p }) {
                   BULK_THRESHOLD
                 )}${bulkOptsParam}`}
                 onClick={guardBulk}
-                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-flame px-5 py-3 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-flame-dk"
+                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-gold px-5 py-3 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-gold-dk"
               >
                 Get a bulk quote
                 <CaretRight size={14} weight="bold" />

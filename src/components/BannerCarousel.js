@@ -21,7 +21,7 @@ const TONE = {
     scrimMobile: "bg-cream/75",
     sub: "text-ink-2",
     kicker: "bg-ink/10 text-ink",
-    cta: "bg-ink text-white hover:bg-flame hover:text-ink",
+    cta: "bg-ink text-white hover:bg-gold hover:text-ink",
     arrow: "bg-ink/80 text-white hover:bg-ink",
     dotOn: "bg-ink",
     dotOff: "bg-ink/25",

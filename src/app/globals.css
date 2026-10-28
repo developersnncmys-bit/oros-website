@@ -24,15 +24,14 @@
   --color-cream: #fbf7f0;
   --color-cream-2: #f5eee2;
 
-  /* Brand — amber. Primary CTAs (bg-flame) and the commerce
-     amber (bg-gold) now share the same hue so every button on the
-     site reads as #ffb627 without touching per-component classes. */
-  --color-flame: #ffb627;
-  --color-flame-dk: #f0a20d;
-  --color-flame-lt: #fff6e4;
+  /* Brand — molten filament orange. Used for text, borders, scrollbar
+     track, status pills (bg-flame-lt), and the slider track. Solid
+     primary buttons now use `bg-gold` instead so they stay amber. */
+  --color-flame: #ff5a2c;
+  --color-flame-dk: #e6421a;
+  --color-flame-lt: #fff1ec;
 
-  /* Commerce actions — kept as the same tokens so `bg-gold` keeps
-     meaning the same thing semantically. */
+  /* Commerce actions — amber. Primary CTAs use these tokens. */
   --color-gold: #ffb627;
   --color-gold-dk: #f0a20d;
   --color-gold-lt: #fff6e4;

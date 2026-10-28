@@ -59,7 +59,7 @@ export default async function Footer() {
         </ul>
 
         {/* ══ Body ══ */}
-        <div className="grid gap-10 py-12 lg:grid-cols-[1.5fr_1fr_1.3fr] lg:gap-16">
+        <div className="grid items-start gap-10 py-12 lg:grid-cols-[1.5fr_1fr_1.3fr] lg:gap-16">
           {/* ── Studio ── */}
           <div>
             <Link href="/" aria-label="OROS — home" className="inline-block">
@@ -68,7 +68,7 @@ export default async function Footer() {
                 alt="OROS"
                 width={150}
                 height={100}
-                className="h-40 w-40 rounded-xl object-contain p-1.5 lg:h-48 lg:w-48"
+                className="h-40 w-40 object-contain object-left lg:h-48 lg:w-48"
               />
             </Link>
 
