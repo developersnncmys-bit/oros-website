@@ -17,7 +17,7 @@ import {
 
 // Served from the CDN and rebuilt in the background at most once a minute,
 // so a click on "Home" never waits on the catalogue API.
-export const revalidate = 60;
+export const revalidate = 10;
 
 function couponHeadline(c) {
   if (c.discountType === "PERCENTAGE") return `${c.discountValue}% off`;

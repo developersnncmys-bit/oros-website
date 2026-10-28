@@ -32,8 +32,8 @@ components) asking for the same thing make one call. Failures are never
 cached — the next request tries again.
 --------------------------------
 */
-const FRESH_MS = 60 * 1000;
-const STALE_MS = 10 * 60 * 1000;
+const FRESH_MS = 10 * 1000;
+const STALE_MS = 60 * 1000;
 const MAX_ENTRIES = 300;
 const cache = new Map(); // key -> { value, at, pending }
 

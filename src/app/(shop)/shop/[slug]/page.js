@@ -7,7 +7,7 @@ import { fetchProductBySlug, fetchSuggested, fetchProducts } from "@/lib/catalog
 // most once a minute. Published products are prerendered at build time
 // (a cold render costs several sequential API calls); products added later
 // are rendered on their first visit and cached from then on.
-export const revalidate = 60;
+export const revalidate = 10;
 
 export async function generateStaticParams() {
   const { products } = await fetchProducts({ limit: 200 });

@@ -10,7 +10,7 @@ export const metadata = {
 };
 
 // Served from the CDN and rebuilt in the background at most once a minute.
-export const revalidate = 60;
+export const revalidate = 10;
 
 /**
  * The unfiltered first page ("all products", default sort) is fetched here
