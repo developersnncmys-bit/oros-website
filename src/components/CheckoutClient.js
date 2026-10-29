@@ -77,6 +77,9 @@ export default function CheckoutClient() {
   const [error, setError] = useState("");
   const [placed, setPlaced] = useState(null);
 
+  const [locating, setLocating] = useState(false);
+  const [locateError, setLocateError] = useState("");
+
   // prefill from the saved address
   useEffect(() => {
     if (!token) return;
@@ -215,6 +218,60 @@ export default function CheckoutClient() {
 
   const useSaved = () => {
     if (savedAddress) setAddress({ ...EMPTY_ADDRESS, ...savedAddress });
+  };
+
+  const useCurrentLocation = () => {
+    setLocateError("");
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setLocateError("Your browser doesn't support location.");
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        try {
+          const url =
+            "https://nominatim.openstreetmap.org/reverse" +
+            `?format=jsonv2&lat=${coords.latitude}&lon=${coords.longitude}` +
+            "&zoom=18&addressdetails=1";
+          const res = await fetch(url, {
+            headers: { "Accept-Language": "en" },
+          });
+          if (!res.ok) throw new Error(`Lookup failed (${res.status})`);
+          const data = await res.json();
+          const a = data.address || {};
+          const line1 = [a.house_number, a.road].filter(Boolean).join(" ");
+          const line2 = [a.neighbourhood, a.suburb, a.city_district]
+            .filter(Boolean)
+            .join(", ");
+          setAddress((prev) => ({
+            ...prev,
+            addressLine1: line1 || prev.addressLine1,
+            addressLine2: line2 || prev.addressLine2,
+            city:
+              a.city || a.town || a.village || a.county || prev.city,
+            state: a.state || prev.state,
+            country: a.country || prev.country,
+            pincode: a.postcode || prev.pincode,
+          }));
+        } catch (e) {
+          setLocateError(e.message || "Couldn't look up that location.");
+        } finally {
+          setLocating(false);
+        }
+      },
+      (err) => {
+        setLocating(false);
+        setLocateError(
+          err.code === err.PERMISSION_DENIED
+            ? "Location permission denied."
+            : err.code === err.TIMEOUT
+            ? "Location request timed out."
+            : "Couldn't get your location."
+        );
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+    );
   };
 
   const applyCoupon = async (code = couponCode) => {
@@ -361,15 +418,29 @@ export default function CheckoutClient() {
               <h2 className="flex items-center gap-2 text-sm font-extrabold uppercase tracking-wide text-ink-2">
                 <MapPin size={15} /> Delivery address
               </h2>
-              {savedAddress && (
+              <div className="flex items-center gap-2">
+                {savedAddress && (
+                  <button
+                    onClick={useSaved}
+                    className="rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-ink-2 transition-colors hover:border-ink-5 hover:text-ink"
+                  >
+                    Use saved address
+                  </button>
+                )}
                 <button
-                  onClick={useSaved}
-                  className="rounded-lg border border-flame px-3 py-1.5 text-xs font-bold text-flame transition-colors hover:bg-flame-lt"
+                  onClick={useCurrentLocation}
+                  disabled={locating}
+                  className="rounded-lg border border-flame px-3 py-1.5 text-xs font-bold text-flame transition-colors hover:bg-flame-lt disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Use current address
+                  {locating ? "Locating…" : "Use current location"}
                 </button>
-              )}
+              </div>
             </div>
+            {locateError && (
+              <p className="mb-3 text-xs font-semibold text-flame">
+                {locateError}
+              </p>
+            )}
 
             <div className="grid gap-3 sm:grid-cols-2">
               <Field
