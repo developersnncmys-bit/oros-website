@@ -350,7 +350,15 @@ export default function ProductDetail({ product: p }) {
       : 0;
 
   const tiers = useMemo(
-    () => [{ minQty: p.minQty || 1, price: p.price }, ...(p.bulkTiers || [])],
+    () => [
+      { minQty: p.minQty || 1, discountPercent: 0, price: p.price },
+      ...(p.bulkTiers || []).map((t) => ({
+        ...t,
+        price: Math.round(
+          (Number(p.price) || 0) * (1 - (Number(t.discountPercent) || 0) / 100)
+        ),
+      })),
+    ],
     [p]
   );
   const tierIndex = tiers.reduce(
@@ -368,10 +376,12 @@ export default function ProductDetail({ product: p }) {
   // bulk desk — same rule as add-to-cart
   const optionsRef = useRef(null);
   const guardBulk = (e) => {
-    const missing = missingOption();
-    if (!missing) return;
+    const list = missingOptionList();
+    if (list.length === 0) return;
     e.preventDefault();
-    setOptError(`Please select ${missing.name} before starting a bulk order`);
+    setOptError(
+      `Kindly select ${joinNaturally(list)} to continue with the bulk order`
+    );
     optionsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
@@ -436,6 +446,32 @@ export default function ProductDetail({ product: p }) {
       return { name: "a secondary color different from the primary" };
     }
     return null;
+  };
+
+  // Every unselected required option, used to build a single friendly
+  // message like "Size and Filament" rather than reporting them one at a time.
+  const missingOptionList = () => {
+    const list = (p.options || [])
+      .filter((o) => !selected[o.name])
+      .map((o) => o.name);
+    if (hasFilaments && !selectedBaseType) list.push("filament");
+    if (hasFilaments && !selectedFamilyKey) list.push("color family");
+    if (hasFilaments && !selectedColorId) {
+      list.push(dualMode ? "primary color" : "color");
+    }
+    if (dualMode && !selectedSecondaryColorId) {
+      list.push("secondary color");
+    }
+    if (dualMode && selectedSecondaryColorId === selectedColorId) {
+      list.push("a secondary color different from the primary");
+    }
+    return list;
+  };
+
+  const joinNaturally = (list) => {
+    if (list.length <= 1) return list[0] || "";
+    if (list.length === 2) return `${list[0]} and ${list[1]}`;
+    return `${list.slice(0, -1).join(", ")}, and ${list[list.length - 1]}`;
   };
 
   // this exact variant is already a cart line — "Add" becomes "Already added"
@@ -842,6 +878,14 @@ export default function ProductDetail({ product: p }) {
 
           {/* ── Options — fully dynamic from the backend ── */}
           <span ref={optionsRef} className="block scroll-mt-28" />
+          {optError && (
+            <p
+              role="alert"
+              className="mb-4 mt-6 rounded-lg border border-flame bg-flame-lt px-3 py-2 text-sm font-bold text-flame"
+            >
+              {optError}
+            </p>
+          )}
           {(p.options || []).map((opt, i) => (
             <Section
               key={opt.id || opt.name}
@@ -1268,6 +1312,32 @@ export default function ProductDetail({ product: p }) {
                   <Plus size={16} weight="bold" />
                 </button>
               </div>
+
+              {tiers.length > 1 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {tiers.slice(1).map((t, i, arr) => {
+                    const isLast = i === arr.length - 1;
+                    const active = qty >= t.minQty && (isLast || qty < arr[i + 1].minQty);
+                    return (
+                      <button
+                        key={t.minQty}
+                        type="button"
+                        onClick={() => setQty(t.minQty)}
+                        aria-label={`Set quantity to ${t.minQty}`}
+                        aria-pressed={active}
+                        className={`grid h-12 min-w-[3rem] place-items-center rounded-xl border-2 px-3 text-sm font-extrabold transition-colors ${
+                          active
+                            ? "border-flame bg-flame text-white"
+                            : "border-line text-ink-2 hover:border-ink-5 hover:text-ink"
+                        }`}
+                      >
+                        {t.minQty}
+                        {isLast ? "+" : ""}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {tiers.length > 1 && (
@@ -1430,29 +1500,34 @@ export default function ProductDetail({ product: p }) {
                 cart, no code needed.
               </p>
               <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {tiers.map((t, i) => (
-                  <button
-                    key={t.minQty}
-                    onClick={() => setQty(t.minQty)}
-                    className={`rounded-xl border-2 p-3 text-left transition-all ${
-                      i === tierIndex
-                        ? "border-flame bg-flame-lt"
-                        : "border-transparent bg-shell hover:border-ink-5"
-                    }`}
-                  >
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-ink-4">
-                      {i === tiers.length - 1
-                        ? `${t.minQty}+`
-                        : `${t.minQty} – ${tiers[i + 1].minQty - 1}`}
-                    </p>
-                    <p className="mt-0.5 font-display text-base font-extrabold text-ink">
-                      {formatINR(t.price)}
-                    </p>
-                  </button>
-                ))}
+                {tiers.slice(1).map((t, i, arr) => {
+                  const isLast = i === arr.length - 1;
+                  const active = i === tierIndex - 1;
+                  return (
+                    <button
+                      key={t.minQty}
+                      onClick={() => setQty(t.minQty)}
+                      className={`rounded-xl border-2 p-3 text-left transition-all ${
+                        active
+                          ? "border-flame bg-flame-lt"
+                          : "border-transparent bg-shell hover:border-ink-5"
+                      }`}
+                    >
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-ink-4">
+                        {isLast
+                          ? `${t.minQty}+`
+                          : `${t.minQty} – ${arr[i + 1].minQty - 1}`}
+                      </p>
+                      <p className="mt-0.5 font-display text-base font-extrabold text-flame">
+                        {t.discountPercent}% off
+                      </p>
+                    </button>
+                  );
+                })}
               </div>
               <Link
-                href="/custom"
+                href={`/bulk?product=${p.slug || p.id}&qty=${qty}${bulkOptsParam}`}
+                onClick={guardBulk}
                 className="mt-5 inline-flex items-center gap-2 rounded-xl bg-gold px-5 py-3 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-gold-dk"
               >
                 Get a bulk quote

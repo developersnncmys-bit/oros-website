@@ -48,16 +48,16 @@ function pickVideos(raw) {
     }));
 }
 
-/** priceSlabs[] -> the { minQty, price } tiers the PDP + cart walk */
+/** priceSlabs[] -> the { minQty, maxQty, discountPercent } tiers the PDP + cart walk */
 function toBulkTiers(priceSlabs) {
   if (!Array.isArray(priceSlabs)) return [];
   return priceSlabs
     .map((s) => ({
       minQty: Number(s.minQty) || 0,
       maxQty: s.maxQty != null ? Number(s.maxQty) : null,
-      price: Number(s.unitPrice) || 0,
+      discountPercent: Number(s.discountPercent) || 0,
     }))
-    .filter((t) => t.minQty > 0 && t.price > 0)
+    .filter((t) => t.minQty > 0 && t.discountPercent > 0 && t.discountPercent < 100)
     .sort((a, b) => a.minQty - b.minQty);
 }
 

@@ -29,15 +29,20 @@ export function applyOptionPricing(base, options = []) {
 }
 
 /**
- * Unit price for a given quantity: walk down the bulk tiers, then apply the
- * selected options' pricing on top.
+ * Unit price for a given quantity: options are applied on top of the base
+ * price, then the matching bulk tier's discount percent is applied.
  */
 export function unitPriceFor(product, qty, options = []) {
   const tier = [...(product?.bulkTiers || [])]
     .sort((a, b) => b.minQty - a.minQty)
-    .find((t) => qty >= t.minQty);
-  const base = tier ? tier.price : product?.price || 0;
-  return Math.max(0, Math.round(applyOptionPricing(base, options)));
+    .find(
+      (t) =>
+        qty >= t.minQty && (t.maxQty == null || qty <= t.maxQty)
+    );
+  const base = Number(product?.price) || 0;
+  const withOptions = applyOptionPricing(base, options);
+  const pct = tier ? Number(tier.discountPercent) || 0 : 0;
+  return Math.max(0, Math.round(withOptions * (1 - pct / 100)));
 }
 
 /** A small named palette so colour-typed options can still render a swatch. */
