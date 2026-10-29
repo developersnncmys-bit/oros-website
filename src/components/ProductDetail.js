@@ -481,9 +481,12 @@ export default function ProductDetail({ product: p }) {
   );
 
   const doAdd = (thenCheckout = false) => {
-    const missing = missingOption();
-    if (missing) {
-      setOptError(`Please select ${missing.name} before adding to cart`);
+    const list = missingOptionList();
+    if (list.length > 0) {
+      setOptError(
+        `Kindly select ${joinNaturally(list)} to continue adding to cart`
+      );
+      optionsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       return false;
     }
     setOptError("");
@@ -1351,11 +1354,6 @@ export default function ProductDetail({ product: p }) {
             )}
           </Section>
 
-          {optError && (
-            <p className="mt-4 rounded-lg bg-flame-lt px-3 py-2 text-sm font-bold text-flame">
-              {optError}
-            </p>
-          )}
 
           {/* ── Bulk-order nudge ── */}
           {qty >= BULK_THRESHOLD && (
