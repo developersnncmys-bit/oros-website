@@ -4,9 +4,9 @@ import {
   Palette,
   Printer,
   Cube,
-  Tag,
+  Factory,
   EnvelopeSimple,
-  MapPin,
+  WhatsappLogo,
 } from "@phosphor-icons/react/ssr";
 import { fetchCategories, fetchProducts } from "@/lib/catalog";
 import FooterCategories from "@/components/FooterCategories";
@@ -21,10 +21,10 @@ export default async function Footer() {
   const productCount = pool.pagination?.total || 0;
 
   const FACTS = [
-    { icon: Cube, value: productCount, label: "objects in the catalogue" },
-    { icon: Printer, value: 40, label: "printers on the floor" },
-    { icon: Palette, value: "50+", label: "colours & finishes on request" },
-    { icon: Tag, value: "40%", label: "off per unit at 500+" },
+    { icon: Cube, value: "Original Designs", label: "Thoughtfully designed products" },
+    { icon: Printer, value: "Precision 3D Printing", label: "Made with care and attention to detail" },
+    { icon: Palette, value: "Personalised Creations", label: "Your choice of colours and finishes" },
+    { icon: Factory, value: "Custom Manufacturing", label: "Bringing your ideas to life" },
   ];
 
   return (
@@ -49,7 +49,7 @@ export default async function Footer() {
                 <Icon size={19} className="text-neon-2" />
               </span>
               <span>
-                <span className="block font-display text-xl font-extrabold leading-none">
+                <span className="block font-display text-lg font-extrabold leading-none">
                   {value}
                 </span>
                 <span className="mt-1 block text-sm text-white/75">{label}</span>
@@ -73,9 +73,7 @@ export default async function Footer() {
             </Link>
 
             <p className="mt-5 max-w-sm text-sm leading-relaxed text-white/55">
-              An additive manufacturing studio in Bengaluru. Forty machines, no
-              moulds, and nothing sitting in a warehouse waiting for you — every
-              object on this site is printed after you order it.
+              OROS is an additive manufacturing studio based in Mumbai, bringing ideas to life through 3D printing. From original designs to custom creations, we focus on quality, precision, and creativity. Every product on this site is printed after you order it.
             </p>
           </div>
 
@@ -93,26 +91,27 @@ export default async function Footer() {
           {/* ── Address ── */}
           <div>
             <h3 className="mb-4 text-[11px] font-bold uppercase tracking-[0.16em] text-white/35">
-              Visit the studio
+              Contact Us
             </h3>
             <address className="space-y-3 text-sm not-italic">
-              <div className="flex gap-2.5">
-                <MapPin size={15} className="mt-0.5 shrink-0 text-white/35" />
-                <span className="text-white/70">
-                  OROS Additive Pvt Ltd
-                  <br />
-                  Bengaluru, Karnataka
-                  <br />
-                  India
-                </span>
+              <div className="flex items-center gap-2.5">
+                <WhatsappLogo size={15} className="shrink-0 text-white/35" />
+                <a
+                  href="https://wa.me/918369685209"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-white/70 transition-colors hover:text-neon-2"
+                >
+                  +91 83696 85209
+                </a>
               </div>
               <div className="flex items-center gap-2.5">
                 <EnvelopeSimple size={15} className="shrink-0 text-white/35" />
                 <a
-                  href="mailto:hello@oros.in"
+                  href="mailto:orosent@yahoo.com"
                   className="text-white/70 transition-colors hover:text-neon-2"
                 >
-                  hello@oros.in
+                  orosent@yahoo.com
                 </a>
               </div>
             </address>
@@ -122,7 +121,7 @@ export default async function Footer() {
         {/* ══ Bottom ══ */}
         <div className="flex flex-wrap items-center justify-between gap-4 border-t border-white/10 py-6">
           <p className="text-xs text-white/40">
-            © {new Date().getFullYear()} OROS Additive Pvt Ltd
+            © {new Date().getFullYear()} OROS Enterprises. All Rights Reserved.
           </p>
           <span className="flex items-center gap-2">
             {["UPI", "Visa", "Mastercard", "RuPay"].map((m) => (

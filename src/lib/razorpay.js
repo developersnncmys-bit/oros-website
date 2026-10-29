@@ -61,6 +61,14 @@ export async function payForOrder(order, prefill = {}) {
         ondismiss: () => reject(new Error("Payment cancelled")),
       },
     });
+    rzp.on("payment.failed", (resp) => {
+      const d = resp?.error || {};
+      reject(
+        new Error(
+          d.description || d.reason || "Payment failed. Please try again."
+        )
+      );
+    });
     rzp.open();
   });
 }

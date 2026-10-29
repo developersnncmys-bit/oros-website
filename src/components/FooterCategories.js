@@ -20,7 +20,7 @@ export default function FooterCategories({ categories = [], productCount = 0 }) 
           href="/shop"
           className="text-sm font-semibold text-white/80 transition-colors hover:text-neon-2"
         >
-          All {productCount} products
+          All products
         </Link>
       </li>
 

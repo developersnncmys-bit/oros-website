@@ -139,8 +139,10 @@ export default function CheckoutClient() {
     "pincode",
   ].every((k) => address[k]?.toString().trim());
 
-  // As soon as the address is filled in, pull live courier rates so the
-  // delivery options + total on the right update without waiting for payment.
+  // TEST ONLY — shipping-rate auto-fetch disabled so Razorpay flow can be
+  // exercised without a working Shiprocket account. Restore this useEffect
+  // (and the one in payNow) before shipping live.
+  /*
   useEffect(() => {
     if (!addressComplete || !/^\d{6}$/.test(address.pincode)) return;
 
@@ -200,6 +202,7 @@ export default function CheckoutClient() {
     address.phone,
     shipping,
   ]);
+  */
 
   const selectedRate = useMemo(
     () =>
@@ -348,8 +351,9 @@ export default function CheckoutClient() {
     }
     setPlacing(true);
     try {
-      // 1. address + shipping rate — re-quote if the pre-fetched one is
-      // missing or past its 10-minute validity
+      // TEST ONLY — skip shipping quote; backend uses a stub when the
+      // IDs are omitted. Restore the fetchRates block below for live use.
+      /*
       let quoteId = shipping?.quoteId;
       let courier = courierId;
       const stale =
@@ -362,11 +366,12 @@ export default function CheckoutClient() {
       }
       if (!quoteId || !courier)
         throw new Error("No delivery option available for this pincode");
+      */
+
+      await addressApi.saveAddress(address);
 
       // 2. order
       const { order } = await orderApi.createOrder({
-        shippingQuoteId: quoteId,
-        shippingCourierId: courier,
         couponCode: coupon?.code || undefined,
       });
 
