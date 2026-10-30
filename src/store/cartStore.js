@@ -95,7 +95,13 @@ export const useCartStore = create(
 
       add: (
         product,
-        { options = [], qty = 1, origin = null, openCart = true } = {}
+        {
+          options = [],
+          qty = 1,
+          origin = null,
+          openCart = true,
+          personalisation = {},
+        } = {}
       ) => {
         if (!product?.id && !product?._id) return;
 
@@ -103,7 +109,7 @@ export const useCartStore = create(
         // so flushPendingAdd() can replay it after the login modal closes.
         if (!tokenStore.get()) {
           set({
-            pendingAdd: { product, options, qty, openCart },
+            pendingAdd: { product, options, qty, openCart, personalisation },
           });
           if (typeof window !== "undefined")
             window.dispatchEvent(new CustomEvent("oros:require-auth"));
@@ -157,6 +163,7 @@ export const useCartStore = create(
                 slug: product.slug,
                 options,
                 qty: quantity,
+                personalisation,
                 snapshot: snapshotOf(product),
               },
             ],
@@ -171,7 +178,7 @@ export const useCartStore = create(
             product: productId,
             qty: quantity,
             selectedOptions: options,
-            personalisation: {},
+            personalisation,
           });
           const serverId = res?.cart?._id || res?.cart?.id || null;
           if (!serverId) return;
@@ -266,6 +273,7 @@ export const useCartStore = create(
           options: pending.options,
           qty: pending.qty,
           openCart: true,
+          personalisation: pending.personalisation || {},
         });
       },
 

@@ -10,8 +10,12 @@ import {
   Tag,
   ShoppingCart,
   X,
+  Plus,
+  PencilSimple,
+  Trash,
 } from "@phosphor-icons/react";
 import ProductImage from "@/components/ProductImage";
+import { useConfirm } from "@/components/ConfirmDialog";
 import { useCart } from "@/store/cartStore";
 import { useAuthStore, useUser } from "@/store/authStore";
 import { formatINR } from "@/lib/format";
@@ -58,9 +62,18 @@ export default function CheckoutClient() {
   const token = useAuthStore((s) => s.token);
   const user = useAuthStore((s) => s.user);
   const { isSignedIn, isCustomer } = useUser();
+  const { confirm, ConfirmDialog } = useConfirm();
 
-  const [address, setAddress] = useState(EMPTY_ADDRESS);
-  const [savedAddress, setSavedAddress] = useState(null);
+  const [addresses, setAddresses] = useState([]);
+  const [selectedId, setSelectedId] = useState(null);
+
+  // Form-side state. `showForm` toggles the inline create/edit panel;
+  // `editingId` is null for "add new" and the address _id when editing.
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [formAddress, setFormAddress] = useState(EMPTY_ADDRESS);
+  const [formError, setFormError] = useState("");
+  const [savingAddress, setSavingAddress] = useState(false);
 
   const [couponCode, setCouponCode] = useState("");
   const [coupon, setCoupon] = useState(null); // { code, discount, finalAmount }
@@ -80,29 +93,35 @@ export default function CheckoutClient() {
   const [locating, setLocating] = useState(false);
   const [locateError, setLocateError] = useState("");
 
-  // prefill from the saved address
+  // Load the user's saved addresses on sign-in. Default (or most recent)
+  // is auto-selected so the shopper can pay without re-picking every visit.
+  // No saved addresses at all → open the empty form straight away.
   useEffect(() => {
     if (!token) return;
     addressApi
-      .getAddress()
-      .then(({ address }) => {
-        if (address) {
-          setSavedAddress(address);
-          setAddress((a) => ({ ...EMPTY_ADDRESS, ...address }));
-        }
+      .listAddresses()
+      .then(({ addresses: list }) => {
+        const arr = Array.isArray(list) ? list : [];
+        setAddresses(arr);
+        const def = arr.find((a) => a.isDefault) || arr[0];
+        if (def) setSelectedId(def._id);
+        else setShowForm(true);
       })
       .catch(() => {});
   }, [token]);
 
+  // When the shopper is about to add a brand-new address, prefill the form
+  // with their account name + phone — otherwise an edit form already carries
+  // the saved values.
   useEffect(() => {
-    if (user) {
-      setAddress((a) => ({
+    if (user && showForm && !editingId) {
+      setFormAddress((a) => ({
         ...a,
         name: a.name || user.name || "",
         phone: a.phone || user.phone || "",
       }));
     }
-  }, [user]);
+  }, [user, showForm, editingId]);
 
   // Re-check the applied coupon whenever the cart subtotal moves. The server
   // re-validates min-order-value and recomputes the discount when the order is
@@ -129,7 +148,12 @@ export default function CheckoutClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subtotal]);
 
-  const addressComplete = [
+  const selectedAddress = useMemo(
+    () => addresses.find((a) => a._id === selectedId) || null,
+    [addresses, selectedId]
+  );
+
+  const formComplete = [
     "name",
     "phone",
     "addressLine1",
@@ -137,7 +161,7 @@ export default function CheckoutClient() {
     "state",
     "country",
     "pincode",
-  ].every((k) => address[k]?.toString().trim());
+  ].every((k) => formAddress[k]?.toString().trim());
 
   // TEST ONLY — shipping-rate auto-fetch disabled so Razorpay flow can be
   // exercised without a working Shiprocket account. Restore this useEffect
@@ -219,8 +243,92 @@ export default function CheckoutClient() {
   if (placed) return <OrderPlaced order={placed} />;
   if (lines.length === 0) return <EmptyState />;
 
-  const useSaved = () => {
-    if (savedAddress) setAddress({ ...EMPTY_ADDRESS, ...savedAddress });
+  const openAddNew = () => {
+    setEditingId(null);
+    setFormAddress({
+      ...EMPTY_ADDRESS,
+      name: user?.name || "",
+      phone: user?.phone || "",
+    });
+    setFormError("");
+    setShowForm(true);
+  };
+
+  const openEdit = (addr) => {
+    setEditingId(addr._id);
+    setFormAddress({ ...EMPTY_ADDRESS, ...addr });
+    setFormError("");
+    setShowForm(true);
+  };
+
+  const cancelForm = () => {
+    setShowForm(false);
+    setEditingId(null);
+    setFormAddress(EMPTY_ADDRESS);
+    setFormError("");
+  };
+
+  const refreshAddresses = async () => {
+    const { addresses: list } = await addressApi.listAddresses();
+    const arr = Array.isArray(list) ? list : [];
+    setAddresses(arr);
+    return arr;
+  };
+
+  const saveForm = async () => {
+    setFormError("");
+    if (!formComplete) {
+      setFormError("Please fill in every required field.");
+      return;
+    }
+    setSavingAddress(true);
+    try {
+      if (editingId) {
+        await addressApi.updateAddress(editingId, formAddress);
+      } else {
+        const { address: created } =
+          await addressApi.createAddress(formAddress);
+        if (created?._id) setSelectedId(created._id);
+      }
+      await refreshAddresses();
+      cancelForm();
+    } catch (e) {
+      setFormError(e.message || "Couldn't save the address.");
+    } finally {
+      setSavingAddress(false);
+    }
+  };
+
+  const removeAddress = async (id) => {
+    const target = addresses.find((a) => a._id === id);
+    const label = target?.name
+      ? `“${target.name}”`
+      : "this address";
+    const ok = await confirm(
+      `Delete ${label}? This address will be removed permanently and cannot be recovered.`,
+      "Delete address"
+    );
+    if (!ok) return;
+    try {
+      await addressApi.deleteAddress(id);
+      const next = await refreshAddresses();
+      if (selectedId === id) {
+        const fallback = next.find((a) => a.isDefault) || next[0] || null;
+        setSelectedId(fallback?._id || null);
+        if (!fallback) setShowForm(true);
+      }
+    } catch (e) {
+      setError(e.message || "Couldn't delete that address.");
+    }
+  };
+
+  const chooseDefault = async (id) => {
+    try {
+      await addressApi.setDefaultAddress(id);
+      await refreshAddresses();
+    } catch (e) {
+      setError(e.message || "Couldn't set that address as default.");
+    }
   };
 
   const useCurrentLocation = () => {
@@ -247,7 +355,7 @@ export default function CheckoutClient() {
           const line2 = [a.neighbourhood, a.suburb, a.city_district]
             .filter(Boolean)
             .join(", ");
-          setAddress((prev) => ({
+          setFormAddress((prev) => ({
             ...prev,
             addressLine1: line1 || prev.addressLine1,
             addressLine2: line2 || prev.addressLine2,
@@ -312,11 +420,12 @@ export default function CheckoutClient() {
 
   const fetchRates = async () => {
     setError("");
-    if (!/^\d{6}$/.test(address.pincode))
+    if (!selectedAddress) throw new Error("Pick a delivery address first");
+    if (!/^\d{6}$/.test(selectedAddress.pincode))
       throw new Error("Enter a valid 6-digit pincode");
-    await addressApi.saveAddress(address);
     const data = await shippingApi.getShippingRates({
-      deliveryPincode: address.pincode,
+      deliveryPincode: selectedAddress.pincode,
+      addressId: selectedAddress._id,
     });
     setShipping(data);
     const rates = data.rates || [];
@@ -345,8 +454,8 @@ export default function CheckoutClient() {
       );
       return;
     }
-    if (!addressComplete) {
-      setError("Please complete the delivery address");
+    if (!selectedAddress) {
+      setError("Please select a delivery address");
       return;
     }
     setPlacing(true);
@@ -368,17 +477,16 @@ export default function CheckoutClient() {
         throw new Error("No delivery option available for this pincode");
       */
 
-      await addressApi.saveAddress(address);
-
       // 2. order
       const { order } = await orderApi.createOrder({
+        addressId: selectedAddress._id,
         couponCode: coupon?.code || undefined,
       });
 
       // 3. pay + verify
       await payForOrder(order, {
-        name: address.name,
-        contact: address.phone,
+        name: selectedAddress.name,
+        contact: selectedAddress.phone,
         email: user?.email || "",
       });
 
@@ -387,8 +495,8 @@ export default function CheckoutClient() {
         id: order._id,
         total: order.pricing?.total ?? total,
         count,
-        name: address.name,
-        pin: address.pincode,
+        name: selectedAddress.name,
+        pin: selectedAddress.pincode,
         placedAt: order.createdAt || Date.now(),
         eta:
           order.shipping?.estimatedDelivery ||
@@ -407,6 +515,7 @@ export default function CheckoutClient() {
 
   return (
     <div className="mx-auto max-w-[1440px] px-4 py-4 lg:px-6">
+      {ConfirmDialog}
       <nav className="mb-3 flex items-center gap-1.5 text-xs text-ink-3">
         <Link href="/cart" className="hover:text-flame">
           Cart
@@ -423,99 +532,253 @@ export default function CheckoutClient() {
               <h2 className="flex items-center gap-2 text-sm font-extrabold uppercase tracking-wide text-ink-2">
                 <MapPin size={15} /> Delivery address
               </h2>
-              <div className="flex items-center gap-2">
-                {savedAddress && (
-                  <button
-                    onClick={useSaved}
-                    className="rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-ink-2 transition-colors hover:border-ink-5 hover:text-ink"
-                  >
-                    Use saved address
-                  </button>
-                )}
+              {!showForm && addresses.length > 0 && (
                 <button
-                  onClick={useCurrentLocation}
-                  disabled={locating}
-                  className="rounded-lg border border-flame px-3 py-1.5 text-xs font-bold text-flame transition-colors hover:bg-flame-lt disabled:cursor-not-allowed disabled:opacity-60"
+                  onClick={openAddNew}
+                  className="flex items-center gap-1.5 rounded-lg border border-flame px-3 py-1.5 text-xs font-bold text-flame transition-colors hover:bg-flame-lt"
                 >
-                  {locating ? "Locating…" : "Use current location"}
+                  <Plus size={13} weight="bold" />
+                  Add new address
                 </button>
-              </div>
+              )}
             </div>
-            {locateError && (
-              <p className="mb-3 text-xs font-semibold text-flame">
-                {locateError}
-              </p>
+
+            {/* ── Saved addresses list ── */}
+            {!showForm && (
+              <>
+                {addresses.length === 0 ? (
+                  <div className="rounded-md border border-dashed border-line bg-canvas px-4 py-6 text-center">
+                    <p className="text-sm text-ink-3">
+                      No saved addresses yet.
+                    </p>
+                    <button
+                      onClick={openAddNew}
+                      className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-flame px-3 py-1.5 text-xs font-bold text-flame hover:bg-flame-lt"
+                    >
+                      <Plus size={13} weight="bold" />
+                      Add new address
+                    </button>
+                  </div>
+                ) : (
+                  <ul className="space-y-2">
+                    {addresses.map((addr) => {
+                      const picked = addr._id === selectedId;
+                      return (
+                        <li
+                          key={addr._id}
+                          className={`rounded-md border p-3 transition-colors ${
+                            picked
+                              ? "border-flame bg-flame-lt"
+                              : "border-line hover:border-ink-5"
+                          }`}
+                        >
+                          <label className="flex cursor-pointer items-start gap-3">
+                            <input
+                              type="radio"
+                              name="checkout-address"
+                              checked={picked}
+                              onChange={() => setSelectedId(addr._id)}
+                              className="mt-1 h-4 w-4 shrink-0 accent-flame"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-bold text-ink">
+                                  {addr.name}
+                                </span>
+                                <span className="text-xs text-ink-3">
+                                  · {addr.phone}
+                                </span>
+                                {addr.isDefault && (
+                                  <span className="rounded bg-leaf-lt px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-leaf">
+                                    Default
+                                  </span>
+                                )}
+                              </div>
+                              <p className="mt-1 text-xs text-ink-3">
+                                {[
+                                  addr.addressLine1,
+                                  addr.addressLine2,
+                                  addr.landmark,
+                                ]
+                                  .filter(Boolean)
+                                  .join(", ")}
+                              </p>
+                              <p className="text-xs text-ink-3">
+                                {[addr.city, addr.state, addr.country]
+                                  .filter(Boolean)
+                                  .join(", ")}
+                                {addr.pincode ? ` · ${addr.pincode}` : ""}
+                              </p>
+                            </div>
+                          </label>
+                          <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-line/60 pt-2 text-xs">
+                            <button
+                              onClick={() => openEdit(addr)}
+                              className="inline-flex items-center gap-1 font-bold text-ink-2 hover:text-flame"
+                            >
+                              <PencilSimple size={12} weight="bold" />
+                              Edit
+                            </button>
+                            {!addr.isDefault && (
+                              <button
+                                onClick={() => chooseDefault(addr._id)}
+                                className="inline-flex items-center gap-1 font-bold text-ink-2 hover:text-flame"
+                              >
+                                Set as default
+                              </button>
+                            )}
+                            <button
+                              onClick={() => removeAddress(addr._id)}
+                              className="ml-auto inline-flex items-center gap-1 font-bold text-ink-3 hover:text-flame"
+                            >
+                              <Trash size={12} weight="bold" />
+                              Delete
+                            </button>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </>
             )}
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field
-                label="Full name"
-                value={address.name}
-                onChange={(v) => setAddress({ ...address, name: v })}
-              />
-              <Field
-                label="Phone"
-                value={address.phone}
-                inputMode="numeric"
-                onChange={(v) =>
-                  setAddress({
-                    ...address,
-                    phone: v.replace(/\D/g, "").slice(0, 10),
-                  })
-                }
-              />
-              <div className="sm:col-span-2">
-                <Field
-                  label="Address line 1"
-                  value={address.addressLine1}
-                  onChange={(v) =>
-                    setAddress({ ...address, addressLine1: v })
-                  }
-                />
+            {/* ── Create / edit form ── */}
+            {showForm && (
+              <div>
+                <div className="mb-4 flex items-center justify-between">
+                  <p className="text-xs font-bold uppercase tracking-wide text-ink-4">
+                    {editingId ? "Edit address" : "New address"}
+                  </p>
+                  <button
+                    onClick={useCurrentLocation}
+                    disabled={locating}
+                    className="rounded-lg border border-flame px-3 py-1.5 text-xs font-bold text-flame transition-colors hover:bg-flame-lt disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {locating ? "Locating…" : "Use current location"}
+                  </button>
+                </div>
+                {locateError && (
+                  <p className="mb-3 text-xs font-semibold text-flame">
+                    {locateError}
+                  </p>
+                )}
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field
+                    label="Full name"
+                    value={formAddress.name}
+                    onChange={(v) =>
+                      setFormAddress({ ...formAddress, name: v })
+                    }
+                  />
+                  <Field
+                    label="Phone"
+                    value={formAddress.phone}
+                    inputMode="numeric"
+                    onChange={(v) =>
+                      setFormAddress({
+                        ...formAddress,
+                        phone: v.replace(/\D/g, "").slice(0, 10),
+                      })
+                    }
+                  />
+                  <div className="sm:col-span-2">
+                    <Field
+                      label="Address line 1"
+                      value={formAddress.addressLine1}
+                      onChange={(v) =>
+                        setFormAddress({
+                          ...formAddress,
+                          addressLine1: v,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Field
+                      label="Address line 2 (optional)"
+                      required={false}
+                      value={formAddress.addressLine2}
+                      onChange={(v) =>
+                        setFormAddress({
+                          ...formAddress,
+                          addressLine2: v,
+                        })
+                      }
+                    />
+                  </div>
+                  <Field
+                    label="Landmark (optional)"
+                    required={false}
+                    value={formAddress.landmark}
+                    onChange={(v) =>
+                      setFormAddress({ ...formAddress, landmark: v })
+                    }
+                  />
+                  <Field
+                    label="City"
+                    value={formAddress.city}
+                    onChange={(v) =>
+                      setFormAddress({ ...formAddress, city: v })
+                    }
+                  />
+                  <Field
+                    label="State"
+                    value={formAddress.state}
+                    onChange={(v) =>
+                      setFormAddress({ ...formAddress, state: v })
+                    }
+                  />
+                  <Field
+                    label="Country"
+                    value={formAddress.country}
+                    onChange={(v) =>
+                      setFormAddress({ ...formAddress, country: v })
+                    }
+                  />
+                  <Field
+                    label="Pincode"
+                    value={formAddress.pincode}
+                    inputMode="numeric"
+                    onChange={(v) =>
+                      setFormAddress({
+                        ...formAddress,
+                        pincode: v.replace(/\D/g, "").slice(0, 6),
+                      })
+                    }
+                  />
+                </div>
+
+                {formError && (
+                  <p className="mt-3 text-xs font-semibold text-flame">
+                    {formError}
+                  </p>
+                )}
+
+                <div className="mt-4 flex items-center gap-2">
+                  <button
+                    onClick={saveForm}
+                    disabled={savingAddress}
+                    className="rounded-md bg-ink px-5 py-2.5 text-xs font-extrabold uppercase tracking-wide text-white transition-colors hover:bg-ink-2 disabled:opacity-60"
+                  >
+                    {savingAddress
+                      ? "Saving…"
+                      : editingId
+                        ? "Save changes"
+                        : "Save address"}
+                  </button>
+                  {addresses.length > 0 && (
+                    <button
+                      onClick={cancelForm}
+                      className="rounded-md border border-line px-5 py-2.5 text-xs font-bold text-ink-2 hover:border-ink-5"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
               </div>
-              <div className="sm:col-span-2">
-                <Field
-                  label="Address line 2 (optional)"
-                  required={false}
-                  value={address.addressLine2}
-                  onChange={(v) =>
-                    setAddress({ ...address, addressLine2: v })
-                  }
-                />
-              </div>
-              <Field
-                label="Landmark (optional)"
-                required={false}
-                value={address.landmark}
-                onChange={(v) => setAddress({ ...address, landmark: v })}
-              />
-              <Field
-                label="City"
-                value={address.city}
-                onChange={(v) => setAddress({ ...address, city: v })}
-              />
-              <Field
-                label="State"
-                value={address.state}
-                onChange={(v) => setAddress({ ...address, state: v })}
-              />
-              <Field
-                label="Country"
-                value={address.country}
-                onChange={(v) => setAddress({ ...address, country: v })}
-              />
-              <Field
-                label="Pincode"
-                value={address.pincode}
-                inputMode="numeric"
-                onChange={(v) =>
-                  setAddress({
-                    ...address,
-                    pincode: v.replace(/\D/g, "").slice(0, 6),
-                  })
-                }
-              />
-            </div>
+            )}
 
             {(ratesLoading || ratesError || shipping?.rates?.length > 0) && (
               <div className="mt-4 border-t border-line pt-4">
@@ -525,7 +788,7 @@ export default function CheckoutClient() {
 
                 {ratesLoading && (
                   <p className="text-xs text-ink-3">
-                    Fetching delivery options for {address.pincode}…
+                    Fetching delivery options for {selectedAddress?.pincode}…
                   </p>
                 )}
 

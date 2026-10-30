@@ -25,6 +25,7 @@ import { gsap, useGSAP, prefersReducedMotion } from "@/lib/gsap";
 import ProductImage from "@/components/ProductImage";
 import SilkSwatch from "@/components/SilkSwatch";
 import { trackProductView } from "@/api/view.api";
+import { uploadPersonalisationLogo } from "@/api/personalisation.api";
 import { useCartStore, useInCart } from "@/store/cartStore";
 import { formatINR, colorHex, unitPriceFor } from "@/lib/format";
 
@@ -191,6 +192,13 @@ export default function ProductDetail({ product: p }) {
   const [added, setAdded] = useState(false);
   const [optError, setOptError] = useState("");
   const art = useRef(null);
+
+  // Personalisation (only used when p.isCustomisable). Both fields are
+  // optional — the admin flagged the product as customisable, but the
+  // customer may still want it plain.
+  const [customText, setCustomText] = useState("");
+  const [logoFile, setLogoFile] = useState(null);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
   // Only THUMB_WINDOW thumbnails are shown at once; the rest are reached
   // via the up/down (down to left/right on mobile) buttons that straddle
@@ -391,6 +399,15 @@ export default function ProductDetail({ product: p }) {
   // during the quote, so we never block navigation here.
   const optionsRef = useRef(null);
 
+  // Each required Section registers itself here under its missingOption()
+  // name so Add-to-cart can scroll straight to the first missing one
+  // instead of landing at the top of the options block.
+  const sectionRefs = useRef({});
+  const registerSection = (key) => (el) => {
+    if (el) sectionRefs.current[key] = el;
+    else delete sectionRefs.current[key];
+  };
+
   const selectedOptions = () => {
     const list = (p.options || []).map((o) => {
       const v = (o.values || []).find((x) => x.value === selected[o.name]);
@@ -486,13 +503,16 @@ export default function ProductDetail({ product: p }) {
     missingOption() ? null : selectedOptions()
   );
 
-  const doAdd = (thenCheckout = false) => {
+  const doAdd = async (thenCheckout = false) => {
     const list = missingOptionList();
     if (list.length > 0) {
       setOptError(
         `Kindly select ${joinNaturally(list)} to continue adding to cart`
       );
-      optionsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      const first = missingOption();
+      const target =
+        (first && sectionRefs.current[first.name]) || optionsRef.current;
+      target?.scrollIntoView({ behavior: "smooth", block: "start" });
       return false;
     }
     setOptError("");
@@ -501,6 +521,32 @@ export default function ProductDetail({ product: p }) {
       if (!thenCheckout) openDrawer();
       return true;
     }
+
+    // When the product is customisable, roll the text + optional logo
+    // image into a personalisation object that rides on the cart line.
+    // The logo is uploaded first so only its hosted URL ends up in the DB.
+    let personalisation = {};
+    if (p.isCustomisable) {
+      const text = customText.trim();
+      if (text) personalisation.text = text;
+      if (logoFile) {
+        try {
+          setIsUploadingLogo(true);
+          const res = await uploadPersonalisationLogo(logoFile);
+          personalisation.logo = {
+            url: res?.url,
+            publicId: res?.publicId,
+            originalName: res?.originalName,
+          };
+        } catch (err) {
+          setOptError(err?.message || "Logo upload failed");
+          return false;
+        } finally {
+          setIsUploadingLogo(false);
+        }
+      }
+    }
+
     // cartStore.add() handles auth: a signed-out add is stashed as
     // pendingAdd and replayed by flushPendingAdd() after login, and a
     // non-customer add fires oros:require-customer. Returns true only
@@ -516,19 +562,20 @@ export default function ProductDetail({ product: p }) {
         // buy-now heads straight to checkout — no need to flash the cart
         // drawer open behind it
         openCart: !thenCheckout,
+        personalisation,
       }) === true
     );
   };
 
-  const handleAdd = () => {
-    if (doAdd() && !inCart) {
+  const handleAdd = async () => {
+    if ((await doAdd()) && !inCart) {
       setAdded(true);
       setTimeout(() => setAdded(false), 1800);
     }
   };
 
-  const handleBuy = () => {
-    if (doAdd(true)) router.push("/checkout");
+  const handleBuy = async () => {
+    if (await doAdd(true)) router.push("/checkout");
   };
 
   return (
@@ -898,6 +945,7 @@ export default function ProductDetail({ product: p }) {
           {(p.options || []).map((opt, i) => (
             <Section
               key={opt.id || opt.name}
+              sectionRef={registerSection(opt.name)}
               n={String(i + 1).padStart(2, "0")}
               title={
                 <>
@@ -964,6 +1012,7 @@ export default function ProductDetail({ product: p }) {
             <>
               {/* Step 1: base filament (PLA, PETG, ABS…) */}
               <Section
+                sectionRef={registerSection("filament")}
                 n={String((p.options?.length || 0) + 1).padStart(2, "0")}
                 title={
                   <>
@@ -1003,6 +1052,7 @@ export default function ProductDetail({ product: p }) {
               {/* Step 2: color family — only after a base is picked */}
               {selectedBaseType && (
                 <Section
+                  sectionRef={registerSection("color family")}
                   n={String((p.options?.length || 0) + 2).padStart(2, "0")}
                   title={
                     <>
@@ -1107,6 +1157,9 @@ export default function ProductDetail({ product: p }) {
                   with the Colour mode step above. */}
               {selectedBaseType && selectedFamilyKey && (
                 <Section
+                  sectionRef={registerSection(
+                    dualMode ? "primary color" : "color"
+                  )}
                   n={String(
                     (p.options?.length || 0) +
                       (p.allowDualColor && selectedFamilyKey ? 4 : 3)
@@ -1182,6 +1235,7 @@ export default function ProductDetail({ product: p }) {
                   disabled to prevent picking the same colour twice. */}
               {dualMode && selectedColorId && (
                 <Section
+                  sectionRef={registerSection("secondary color")}
                   n={String((p.options?.length || 0) + 5).padStart(2, "0")}
                   title={
                     <>
@@ -1279,6 +1333,92 @@ export default function ProductDetail({ product: p }) {
             </>
           )}
 
+          {/* ── Personalisation (admin flagged this product as customisable) ── */}
+          {p.isCustomisable && (
+            <Section
+              n={String(
+                (p.options?.length || 0) +
+                  (hasFilaments ? 4 : 1) +
+                  (p.allowDualColor && selectedFamilyKey ? 1 : 0) +
+                  (dualMode && selectedColorId ? 1 : 0)
+              ).padStart(2, "0")}
+              title="Personalise"
+              value={
+                customText || logoFile
+                  ? [
+                      customText && `“${customText}”`,
+                      logoFile && logoFile.name,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")
+                  : "Optional"
+              }
+            >
+              <p className="mb-4 text-sm text-ink-3">
+                Request a custom note (e.g. a name) and/or upload a logo to be
+                printed on this product. Both are optional — leave blank for a
+                plain version.
+              </p>
+
+              <label className="mb-3 block text-sm font-bold text-ink">
+                Custom note
+                <input
+                  type="text"
+                  value={customText}
+                  onChange={(e) => setCustomText(e.target.value)}
+                  maxLength={80}
+                  placeholder="Name, phrase or initials"
+                  className="mt-1.5 block w-full rounded-xl border-2 border-line bg-shell px-4 py-3 text-sm font-semibold text-ink outline-none transition-colors placeholder:text-ink-4 focus:border-ink-5"
+                />
+                <span className="mt-1 block text-xs text-ink-4">
+                  {customText.length}/80
+                </span>
+              </label>
+
+              <label className="block text-sm font-bold text-ink">
+                Logo image
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,image/webp"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    if (file && file.size > 5 * 1024 * 1024) {
+                      setOptError("Logo file must be 5 MB or smaller");
+                      return;
+                    }
+                    setOptError("");
+                    setLogoFile(file);
+                  }}
+                  className="mt-1.5 block w-full text-sm text-ink file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-ink file:px-4 file:py-2 file:text-xs file:font-bold file:uppercase file:tracking-wider file:text-white hover:file:bg-ink-2"
+                />
+                <span className="mt-1 block text-xs text-ink-4">
+                  PNG, JPG or WEBP · up to 5 MB
+                </span>
+              </label>
+
+              {logoFile && (
+                <div className="mt-3 flex items-center gap-3 rounded-xl bg-canvas px-3 py-2">
+                  <span className="truncate text-sm font-semibold text-ink">
+                    {logoFile.name}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setLogoFile(null)}
+                    className="ml-auto text-xs font-bold uppercase tracking-wider text-ink-3 hover:text-flame"
+                  >
+                    Remove
+                  </button>
+                </div>
+              )}
+
+              {isUploadingLogo && (
+                <p className="mt-3 text-xs font-semibold text-ink-3">
+                  Uploading logo…
+                </p>
+              )}
+            </Section>
+          )}
+
           {/* ── Quantity + tiers ── */}
           <Section
             n={String(
@@ -1322,9 +1462,42 @@ export default function ProductDetail({ product: p }) {
                 </button>
               </div>
 
-              {tiers.length > 1 && (
-                <div className="flex flex-wrap items-center gap-2">
-                  {tiers.slice(1).map((t, i, arr) => {
+              <div className="flex flex-wrap items-center gap-2">
+                {[5, 10]
+                  // Always offered as a quick-pick, independent of admin
+                  // bulk tiers — the only reason to drop one is if the
+                  // product's own minQty is above it, or an admin tier
+                  // already renders a button with that exact number
+                  // (filtered out below to avoid two identical chips).
+                  .filter(
+                    (n) =>
+                      n >= (p.minQty || 1) &&
+                      !tiers
+                        .slice(1)
+                        .some((t) => t.minQty === n)
+                  )
+                  .map((n) => {
+                    const active = qty === n;
+                    return (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setQty(n)}
+                        aria-label={`Set quantity to ${n}`}
+                        aria-pressed={active}
+                        className={`grid h-12 min-w-[3rem] place-items-center rounded-xl border-2 px-3 text-sm font-extrabold transition-colors ${
+                          active
+                            ? "border-flame bg-flame text-white"
+                            : "border-line text-ink-2 hover:border-ink-5 hover:text-ink"
+                        }`}
+                      >
+                        {n}
+                      </button>
+                    );
+                  })}
+
+                {tiers.length > 1 &&
+                  tiers.slice(1).map((t, i, arr) => {
                     const isLast = i === arr.length - 1;
                     const active = qty >= t.minQty && (isLast || qty < arr[i + 1].minQty);
                     return (
@@ -1345,8 +1518,7 @@ export default function ProductDetail({ product: p }) {
                       </button>
                     );
                   })}
-                </div>
-              )}
+              </div>
             </div>
 
             {tiers.length > 1 && (
@@ -1412,9 +1584,12 @@ export default function ProductDetail({ product: p }) {
             <div className="mt-5 grid grid-cols-2 gap-2.5">
               <button
                 onClick={handleAdd}
-                className="flex items-center justify-center gap-2 rounded-xl bg-gold py-4 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-gold-dk"
+                disabled={isUploadingLogo}
+                className="flex items-center justify-center gap-2 rounded-xl bg-gold py-4 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-gold-dk disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {added ? (
+                {isUploadingLogo ? (
+                  "Uploading…"
+                ) : added ? (
                   <>
                     <Check size={17} weight="bold" />
                     Added
@@ -1433,7 +1608,8 @@ export default function ProductDetail({ product: p }) {
               </button>
               <button
                 onClick={handleBuy}
-                className="flex items-center justify-center gap-2 rounded-xl bg-gold py-4 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-gold-dk"
+                disabled={isUploadingLogo}
+                className="flex items-center justify-center gap-2 rounded-xl bg-gold py-4 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-gold-dk disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Lightning size={17} weight="fill" />
                 Buy now
@@ -1610,9 +1786,12 @@ function TierMeter({ tiers, tierIndex, nextTier, qty, unit }) {
   );
 }
 
-function Section({ title, value, children }) {
+function Section({ title, value, children, sectionRef }) {
   return (
-    <section className="mt-9 border-t border-line pt-7">
+    <section
+      ref={sectionRef}
+      className="mt-9 scroll-mt-28 border-t border-line pt-7"
+    >
       <div className="mb-4 flex items-baseline gap-3">
         <h2 className="font-display text-lg font-extrabold tracking-tight text-ink">
           {title}

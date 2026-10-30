@@ -8,7 +8,7 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import { CaretRight, Plus, Trash } from "@phosphor-icons/react";
 import { fetchProducts, fetchProductBySlug } from "@/lib/catalog";
 import { createQuotation, listQuotations } from "@/api/quotation.api";
-import { getAddress } from "@/api/address.api";
+import { listAddresses } from "@/api/address.api";
 import { useAuthStore } from "@/store/authStore";
 import QuotationThread from "@/components/QuotationThread";
 import SilkSwatch from "@/components/SilkSwatch";
@@ -425,7 +425,12 @@ export default function BulkDesk() {
     setAddrLoading(true);
     setErr("");
     try {
-      const { address } = await getAddress();
+      // Pick the default address, or fall back to the most-recently updated
+      // one — matches the behaviour of the shared `findResolvedAddress`
+      // helper on the backend.
+      const { addresses } = await listAddresses();
+      const list = Array.isArray(addresses) ? addresses : [];
+      const address = list.find((a) => a.isDefault) || list[0];
       if (!address) {
         setErr("No saved address found on your account");
         return;
