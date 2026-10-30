@@ -1,16 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { CaretRight, Plus, Trash } from "@phosphor-icons/react";
-import { fetchProducts } from "@/lib/catalog";
+import { fetchProducts, fetchProductBySlug } from "@/lib/catalog";
 import { createQuotation, listQuotations } from "@/api/quotation.api";
 import { getAddress } from "@/api/address.api";
 import { useAuthStore } from "@/store/authStore";
 import QuotationThread from "@/components/QuotationThread";
+import SilkSwatch from "@/components/SilkSwatch";
 import { scrollToTop } from "@/lib/scrollTop";
 import { colorHex } from "@/lib/format";
 
@@ -39,6 +40,173 @@ function RequiredField({ children, className = "" }) {
   );
 }
 
+// PDP-style three-tier filament picker: base type → color family → color.
+// State lives on the parent line (`baseType`, `familyKey`, `colorId`) and
+// cascades: changing the base clears family + color, changing the family
+// clears the color — same contract the PDP enforces.
+const BASE_ORDER = ["PLA", "PETG", "ABS", "ASA"];
+
+function FilamentPicker({ product, line, onChange }) {
+  const filamentsList = product.filaments || [];
+
+  const baseTypes = useMemo(() => {
+    const unique = [
+      ...new Set(filamentsList.map((f) => f.type).filter(Boolean)),
+    ];
+    return unique.sort((a, b) => {
+      const ai = BASE_ORDER.indexOf(a);
+      const bi = BASE_ORDER.indexOf(b);
+      if (ai === -1 && bi === -1) return a.localeCompare(b);
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    });
+  }, [filamentsList]);
+
+  const filamentsInBase = useMemo(
+    () => filamentsList.filter((f) => f.type === line.baseType),
+    [filamentsList, line.baseType]
+  );
+
+  const familiesInBase = useMemo(() => {
+    const map = new Map();
+    filamentsInBase.forEach((f) => {
+      const key = f.colorFamily?.id || "__none__";
+      const name = f.colorFamily?.name || "Unclassified";
+      if (!map.has(key)) map.set(key, { key, name });
+    });
+    return [...map.values()];
+  }, [filamentsInBase]);
+
+  const colorsInFamily = useMemo(() => {
+    if (!line.baseType || !line.familyKey) return [];
+    const list = [];
+    filamentsInBase
+      .filter((f) => (f.colorFamily?.id || "__none__") === line.familyKey)
+      .forEach((f) => {
+        (f.colors || []).forEach((c) => {
+          list.push({ ...c, filamentName: f.name });
+        });
+      });
+    return list;
+  }, [filamentsInBase, line.baseType, line.familyKey]);
+
+  const selectedFamilyName = familiesInBase.find(
+    (f) => f.key === line.familyKey
+  )?.name;
+  const selectedColorName = colorsInFamily.find(
+    (c) => c.id === line.colorId
+  )?.name;
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-ink-4">
+          Filament<span className="text-flame"> *</span>
+          <span className="ml-2 normal-case font-semibold tracking-normal text-ink-2">
+            {line.baseType || "Choose one"}
+          </span>
+        </span>
+        <div className="flex flex-wrap gap-2">
+          {baseTypes.map((type) => {
+            const on = line.baseType === type;
+            return (
+              <button
+                key={type}
+                type="button"
+                onClick={() =>
+                  onChange(
+                    on
+                      ? { baseType: "", familyKey: "", colorId: "" }
+                      : { baseType: type, familyKey: "", colorId: "" }
+                  )
+                }
+                aria-pressed={on}
+                className={`rounded-full border-2 px-3.5 py-1 text-sm font-bold transition-all ${
+                  on
+                    ? "border-ink bg-ink text-white"
+                    : "border-line text-ink-2 hover:border-ink-5"
+                }`}
+              >
+                {type}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {line.baseType && familiesInBase.length > 0 && (
+        <div>
+          <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-ink-4">
+            Color family<span className="text-flame"> *</span>
+            <span className="ml-2 normal-case font-semibold tracking-normal text-ink-2">
+              {selectedFamilyName || "Choose one"}
+            </span>
+          </span>
+          <div className="flex flex-wrap gap-2">
+            {familiesInBase.map((fam) => {
+              const on = line.familyKey === fam.key;
+              return (
+                <button
+                  key={fam.key}
+                  type="button"
+                  onClick={() =>
+                    onChange(
+                      on
+                        ? { familyKey: "", colorId: "" }
+                        : { familyKey: fam.key, colorId: "" }
+                    )
+                  }
+                  aria-pressed={on}
+                  className={`rounded-full border-2 px-3.5 py-1 text-sm font-bold transition-all ${
+                    on
+                      ? "border-ink bg-ink text-white"
+                      : "border-line text-ink-2 hover:border-ink-5"
+                  }`}
+                >
+                  {fam.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {line.baseType && line.familyKey && colorsInFamily.length > 0 && (
+        <div>
+          <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-ink-4">
+            Color<span className="text-flame"> *</span>
+            <span className="ml-2 normal-case font-semibold tracking-normal text-ink-2">
+              {selectedColorName || "Choose one"}
+            </span>
+          </span>
+          <div className="flex flex-wrap gap-2">
+            {colorsInFamily.map((c) => {
+              const on = line.colorId === c.id;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => onChange({ colorId: on ? "" : c.id })}
+                  aria-pressed={on}
+                  className={`flex items-center gap-2 rounded-full border-2 py-1 pl-1 pr-3.5 transition-all ${
+                    on
+                      ? "border-ink bg-ink text-white"
+                      : "border-line text-ink-2 hover:border-ink-5"
+                  }`}
+                >
+                  <SilkSwatch color={c} className="h-6 w-6" />
+                  <span className="text-sm font-bold">{c.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function BulkDesk() {
   const params = useSearchParams();
   const pathname = usePathname();
@@ -61,9 +229,17 @@ export default function BulkDesk() {
 
   const [products, setProducts] = useState([]);
   // bulk quotes can carry several products — one row per product variant;
-  // options is { optionName: value }
+  // options is { optionName: value }. baseType/familyKey/colorId drive the
+  // three-tier filament picker, same shape as the PDP.
   const [lines, setLinesRaw] = useState([
-    { productId: "", qty: qtyParam > 0 ? qtyParam : 250, options: {} },
+    {
+      productId: "",
+      qty: qtyParam > 0 ? qtyParam : 250,
+      options: {},
+      baseType: "",
+      familyKey: "",
+      colorId: "",
+    },
   ]);
   // any edit by the customer marks the rows as unsent work worth guarding
   const [touched, setTouched] = useState(false);
@@ -82,14 +258,35 @@ export default function BulkDesk() {
   const removeLine = (i) => setLines((ls) => ls.filter((_, j) => j !== i));
   // a new row starts empty — the customer picks the product themselves
   const addLine = () =>
-    setLines((ls) => [...ls, { productId: "", qty: 250, options: {} }]);
+    setLines((ls) => [
+      ...ls,
+      {
+        productId: "",
+        qty: 250,
+        options: {},
+        baseType: "",
+        familyKey: "",
+        colorId: "",
+      },
+    ]);
   // another variant of the same product, right below its row
   const addVariant = (i) =>
     setLines((ls) => [
       ...ls.slice(0, i + 1),
-      { productId: ls[i].productId, qty: 250, options: {} },
+      {
+        productId: ls[i].productId,
+        qty: 250,
+        options: {},
+        baseType: "",
+        familyKey: "",
+        colorId: "",
+      },
       ...ls.slice(i + 1),
     ]);
+  // filament picks cascade — changing base type clears family + color,
+  // and changing family clears color. The patch is merged into the line.
+  const setLineFilament = (i, patch) =>
+    setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
   // custom quotes: catalogue products the request is based on, each once
   const [refs, setRefsRaw] = useState([{ productId: "", qty: 1 }]);
   const setRefs = (update) => {
@@ -127,6 +324,33 @@ export default function BulkDesk() {
     () => new Map(products.map((p) => [String(p.id), p])),
     [products]
   );
+
+  // The /product list endpoint strips `filaments` to keep the response
+  // small, so a list product has no filament data to render the picker
+  // against. We lazily upgrade any selected row to the full PDP payload
+  // (same source the PDP uses) and merge it over the list product.
+  const [fullProductMap, setFullProductMap] = useState({});
+  const fetchingFullRef = useRef(new Set());
+  useEffect(() => {
+    const ids = [
+      ...new Set(lines.map((l) => String(l.productId)).filter(Boolean)),
+    ];
+    for (const id of ids) {
+      if (fullProductMap[id] || fetchingFullRef.current.has(id)) continue;
+      fetchingFullRef.current.add(id);
+      fetchProductBySlug(id)
+        .then((full) => {
+          if (full) setFullProductMap((m) => ({ ...m, [id]: full }));
+        })
+        .catch(() => {})
+        .finally(() => fetchingFullRef.current.delete(id));
+    }
+  }, [lines, fullProductMap]);
+
+  // Prefer the full payload (has filaments) but fall back to the list
+  // record so dropdown + image render immediately before the fetch lands.
+  const resolveProduct = (id) =>
+    fullProductMap[String(id)] || productMap.get(String(id)) || null;
 
   /*
   Nothing here is saved until the request is sent, so warn before the
@@ -225,7 +449,8 @@ export default function BulkDesk() {
   };
 
   useEffect(() => {
-    fetchProducts({ limit: 200 }).then(({ products }) => {
+    (async () => {
+      const { products } = await fetchProducts({ limit: 200 });
       setProducts(products);
       const fromLink =
         productParam &&
@@ -233,6 +458,46 @@ export default function BulkDesk() {
           (p) => p.slug === productParam || p.id === productParam
         );
       const first = fromLink || products[0];
+
+      // The list endpoint strips filaments — fetch the full payload for
+      // the deep-linked product so we can validate the handoff params.
+      let fromLinkFull = null;
+      if (fromLink) {
+        fromLinkFull = await fetchProductBySlug(fromLink.slug || fromLink.id);
+        if (fromLinkFull) {
+          setFullProductMap((m) => ({ ...m, [String(fromLinkFull.id)]: fromLinkFull }));
+        }
+      }
+
+      // PDP → bulk handoff: baseType / familyKey / colorId arrive as URL
+      // params. Only trust them if they map to a real filament record on
+      // the product the row is bound to.
+      const baseTypeParam = params.get("baseType") || "";
+      const familyKeyParam = params.get("familyKey") || "";
+      const colorIdParam = params.get("colorId") || "";
+      let filamentPicks = { baseType: "", familyKey: "", colorId: "" };
+      const filamentSource = fromLinkFull || fromLink;
+      if (filamentSource && (filamentSource.filaments || []).length > 0) {
+        const matching = (filamentSource.filaments || []).find(
+          (f) =>
+            f.type === baseTypeParam &&
+            (f.colorFamily?.id || "__none__") === familyKeyParam &&
+            (f.colors || []).some((c) => c.id === colorIdParam)
+        );
+        if (matching) {
+          filamentPicks = {
+            baseType: baseTypeParam,
+            familyKey: familyKeyParam,
+            colorId: colorIdParam,
+          };
+        } else if (
+          baseTypeParam &&
+          (filamentSource.filaments || []).some((f) => f.type === baseTypeParam)
+        ) {
+          // partial handoff — carry the base type so the picker opens there
+          filamentPicks = { baseType: baseTypeParam, familyKey: "", colorId: "" };
+        }
+      }
       if (first)
         setLinesRaw((ls) =>
           ls.map((l, i) =>
@@ -252,6 +517,7 @@ export default function BulkDesk() {
                           .map((o) => [o.name, optionsParam[o.name]])
                       )
                     : {},
+                  ...filamentPicks,
                 }
               : l
           )
@@ -270,7 +536,7 @@ export default function BulkDesk() {
           );
         }
       }
-    });
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productParam, isCustom]);
 
@@ -278,11 +544,31 @@ export default function BulkDesk() {
   const chosen = useMemo(() => {
     const byKey = new Map();
     for (const l of lines) {
-      const p = productMap.get(String(l.productId));
+      const p =
+        fullProductMap[String(l.productId)] ||
+        productMap.get(String(l.productId));
       if (!p) continue;
       const selectedOptions = (p.options || [])
         .filter((o) => l.options?.[o.name])
         .map((o) => ({ name: o.name, value: l.options[o.name] }));
+
+      // when the product has filaments and the three picks resolve to a
+      // real color, fold them into selectedOptions so the desk sees them
+      // alongside Size — same shape the cart line uses
+      const filamentsList = p.filaments || [];
+      if (filamentsList.length > 0 && l.baseType && l.familyKey && l.colorId) {
+        for (const f of filamentsList) {
+          if (f.type !== l.baseType) continue;
+          if ((f.colorFamily?.id || "__none__") !== l.familyKey) continue;
+          const col = (f.colors || []).find((c) => c.id === l.colorId);
+          if (col) {
+            selectedOptions.push({ name: "Filament", value: f.name });
+            selectedOptions.push({ name: "Color", value: col.name });
+            break;
+          }
+        }
+      }
+
       const key = `${p.id}|${selectedOptions
         .map((o) => `${o.name}=${o.value}`)
         .join("&")}`;
@@ -295,7 +581,7 @@ export default function BulkDesk() {
       });
     }
     return [...byKey.values()];
-  }, [lines, productMap]);
+  }, [lines, productMap, fullProductMap]);
 
   const variantLabel = (opts) =>
     opts.length ? ` (${opts.map((o) => o.value).join(" / ")})` : "";
@@ -333,7 +619,7 @@ export default function BulkDesk() {
       if (chosen.length === 0) return setErr("Add at least one product");
       // every option must be picked on each row, same as the PDP
       for (let i = 0; i < lines.length; i++) {
-        const p = productMap.get(String(lines[i].productId));
+        const p = resolveProduct(lines[i].productId);
         const missing = (p?.options || []).find(
           (o) => !lines[i].options?.[o.name]
         );
@@ -343,6 +629,18 @@ export default function BulkDesk() {
               lines.length > 1 ? ` (row ${i + 1})` : ""
             }`
           );
+
+        // filament picker is required when the product offers filaments
+        const rowSuffix = lines.length > 1 ? ` (row ${i + 1})` : "";
+        const filamentsList = p?.filaments || [];
+        if (filamentsList.length > 0) {
+          if (!lines[i].baseType)
+            return setErr(`Choose a filament for ${p.name}${rowSuffix}`);
+          if (!lines[i].familyKey)
+            return setErr(`Choose a color family for ${p.name}${rowSuffix}`);
+          if (!lines[i].colorId)
+            return setErr(`Choose a color for ${p.name}${rowSuffix}`);
+        }
       }
     }
 
@@ -546,7 +844,7 @@ export default function BulkDesk() {
 
           <div className="mt-6 space-y-3">
             {lines.map((l, i) => {
-              const p = productMap.get(String(l.productId));
+              const p = resolveProduct(l.productId);
               return (
                 <div
                   key={i}
@@ -572,7 +870,13 @@ export default function BulkDesk() {
                     <select
                       value={l.productId}
                       onChange={(e) =>
-                        setLine(i, { productId: e.target.value, options: {} })
+                        setLine(i, {
+                          productId: e.target.value,
+                          options: {},
+                          baseType: "",
+                          familyKey: "",
+                          colorId: "",
+                        })
                       }
                       className={`h-11 w-full rounded-lg border bg-shell px-3 text-sm font-bold outline-none focus:border-flame ${
                         l.productId ? "border-line text-ink" : "border-flame/50 text-ink-3"
@@ -623,63 +927,77 @@ export default function BulkDesk() {
                     </button>
                   )}
 
-                  {/* ── variant options, same pills as the PDP ── */}
-                  {(p?.options || []).length > 0 && (
-                    <div className="col-span-full space-y-3 border-t border-dashed border-line pt-3">
-                      {p.options.map((opt) => (
-                        <div key={opt.id || opt.name}>
-                          <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-ink-4">
-                            {opt.name}
-                            <span className="text-flame"> *</span>
-                            <span className="ml-2 normal-case font-semibold tracking-normal text-ink-2">
-                              {l.options?.[opt.name] || "Choose one"}
+                  {/* ── variant options + filament picker, same pills as the PDP ── */}
+                  {p &&
+                    ((p.options || []).length > 0 ||
+                      (p.filaments || []).length > 0) && (
+                      <div className="col-span-full space-y-4 border-t border-dashed border-line pt-3">
+                        {(p.options || []).map((opt) => (
+                          <div key={opt.id || opt.name}>
+                            <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-ink-4">
+                              {opt.name}
+                              <span className="text-flame"> *</span>
+                              <span className="ml-2 normal-case font-semibold tracking-normal text-ink-2">
+                                {l.options?.[opt.name] || "Choose one"}
+                              </span>
                             </span>
-                          </span>
-                          <div className="flex flex-wrap gap-2">
-                            {(opt.values || []).map((v) => {
-                              const on = l.options?.[opt.name] === v.value;
-                              return (
-                                <button
-                                  type="button"
-                                  key={v.id || v.value}
-                                  onClick={() => {
-                                    setLineOption(i, opt.name, v.value);
-                                    setErr("");
-                                  }}
-                                  aria-pressed={on}
-                                  className={`flex items-center gap-2 rounded-full border-2 py-1 pr-3.5 transition-all ${
-                                    opt.type === "COLOR" ? "pl-1" : "pl-3.5"
-                                  } ${
-                                    on
-                                      ? "border-ink bg-ink text-white"
-                                      : "border-line text-ink-2 hover:border-ink-5"
-                                  }`}
-                                >
-                                  {opt.type === "COLOR" && (
-                                    <span
-                                      className="h-6 w-6 rounded-full ring-1 ring-inset ring-black/10"
-                                      style={{ backgroundColor: colorHex(v.value) }}
-                                    />
-                                  )}
-                                  <span className="text-sm font-bold">
-                                    {v.value}
-                                  </span>
-                                </button>
-                              );
-                            })}
+                            <div className="flex flex-wrap gap-2">
+                              {(opt.values || []).map((v) => {
+                                const on = l.options?.[opt.name] === v.value;
+                                return (
+                                  <button
+                                    type="button"
+                                    key={v.id || v.value}
+                                    onClick={() => {
+                                      setLineOption(i, opt.name, v.value);
+                                      setErr("");
+                                    }}
+                                    aria-pressed={on}
+                                    className={`flex items-center gap-2 rounded-full border-2 py-1 pr-3.5 transition-all ${
+                                      opt.type === "COLOR" ? "pl-1" : "pl-3.5"
+                                    } ${
+                                      on
+                                        ? "border-ink bg-ink text-white"
+                                        : "border-line text-ink-2 hover:border-ink-5"
+                                    }`}
+                                  >
+                                    {opt.type === "COLOR" && (
+                                      <span
+                                        className="h-6 w-6 rounded-full ring-1 ring-inset ring-black/10"
+                                        style={{ backgroundColor: colorHex(v.value) }}
+                                      />
+                                    )}
+                                    <span className="text-sm font-bold">
+                                      {v.value}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={() => addVariant(i)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-xs font-bold text-ink-2 transition-colors hover:border-flame hover:text-flame"
-                      >
-                        <Plus size={12} weight="bold" />
-                        Add another variant of {p.name}
-                      </button>
-                    </div>
-                  )}
+                        ))}
+
+                        {(p.filaments || []).length > 0 && (
+                          <FilamentPicker
+                            product={p}
+                            line={l}
+                            onChange={(patch) => {
+                              setLineFilament(i, patch);
+                              setErr("");
+                            }}
+                          />
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => addVariant(i)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-xs font-bold text-ink-2 transition-colors hover:border-flame hover:text-flame"
+                        >
+                          <Plus size={12} weight="bold" />
+                          Add another variant of {p.name}
+                        </button>
+                      </div>
+                    )}
                 </div>
               );
             })}

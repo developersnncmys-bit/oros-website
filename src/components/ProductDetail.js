@@ -23,6 +23,7 @@ import {
 } from "@phosphor-icons/react";
 import { gsap, useGSAP, prefersReducedMotion } from "@/lib/gsap";
 import ProductImage from "@/components/ProductImage";
+import SilkSwatch from "@/components/SilkSwatch";
 import { trackProductView } from "@/api/view.api";
 import { useCartStore, useInCart } from "@/store/cartStore";
 import { formatINR, colorHex, unitPriceFor } from "@/lib/format";
@@ -367,23 +368,28 @@ export default function ProductDetail({ product: p }) {
   );
   const nextTier = tiers[tierIndex + 1];
 
-  // carries the picked variant over to the bulk-quote page
-  const bulkOptsParam = Object.keys(selected).length
-    ? `&options=${encodeURIComponent(JSON.stringify(selected))}`
-    : "";
+  // carries the picked variant over to the bulk-quote page — regular
+  // options go through as a single JSON blob, filament picks ride as
+  // their own params so the bulk picker can validate each tier against
+  // the product's filament list before pre-selecting it
+  const bulkOptsParam = [
+    Object.keys(selected).length
+      ? `&options=${encodeURIComponent(JSON.stringify(selected))}`
+      : "",
+    hasFilaments && selectedBaseType
+      ? `&baseType=${encodeURIComponent(selectedBaseType)}`
+      : "",
+    hasFilaments && selectedFamilyKey
+      ? `&familyKey=${encodeURIComponent(selectedFamilyKey)}`
+      : "",
+    hasFilaments && selectedColorId
+      ? `&colorId=${encodeURIComponent(selectedColorId)}`
+      : "",
+  ].join("");
 
-  // a variant product needs every option picked before it can go to the
-  // bulk desk — same rule as add-to-cart
+  // Bulk flow accepts missing variant options — the desk resolves them
+  // during the quote, so we never block navigation here.
   const optionsRef = useRef(null);
-  const guardBulk = (e) => {
-    const list = missingOptionList();
-    if (list.length === 0) return;
-    e.preventDefault();
-    setOptError(
-      `Kindly select ${joinNaturally(list)} to continue with the bulk order`
-    );
-    optionsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
 
   const selectedOptions = () => {
     const list = (p.options || []).map((o) => {
@@ -1376,7 +1382,6 @@ export default function ProductDetail({ product: p }) {
               </div>
               <Link
                 href={`/bulk?product=${p.slug || p.id}&qty=${qty}${bulkOptsParam}`}
-                onClick={guardBulk}
                 className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-neon py-3.5 text-sm font-extrabold uppercase tracking-wide text-white transition-opacity hover:opacity-90"
               >
                 Start bulk order
@@ -1525,7 +1530,6 @@ export default function ProductDetail({ product: p }) {
               </div>
               <Link
                 href={`/bulk?product=${p.slug || p.id}&qty=${qty}${bulkOptsParam}`}
-                onClick={guardBulk}
                 className="mt-5 inline-flex items-center gap-2 rounded-xl bg-gold px-5 py-3 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-gold-dk"
               >
                 Get a bulk quote
@@ -1603,28 +1607,6 @@ function TierMeter({ tiers, tierIndex, nextTier, qty, unit }) {
         ))}
       </div>
     </div>
-  );
-}
-
-function SilkSwatch({ color }) {
-  const stops = [color.hex, color.hexSecondary, color.hexTertiary].filter(Boolean);
-  if (stops.length <= 1) {
-    return (
-      <span
-        className="h-7 w-7 rounded-full ring-1 ring-inset ring-black/10"
-        style={{ backgroundColor: stops[0] || "#eee" }}
-      />
-    );
-  }
-  const slice = 100 / stops.length;
-  const bg = stops
-    .map((hex, i) => `${hex} ${i * slice}% ${(i + 1) * slice}%`)
-    .join(", ");
-  return (
-    <span
-      className="h-7 w-7 rounded-full ring-1 ring-inset ring-black/10"
-      style={{ background: `linear-gradient(90deg, ${bg})` }}
-    />
   );
 }
 
