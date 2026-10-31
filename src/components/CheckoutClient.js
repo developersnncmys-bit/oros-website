@@ -163,16 +163,16 @@ export default function CheckoutClient() {
     "pincode",
   ].every((k) => formAddress[k]?.toString().trim());
 
-  // TEST ONLY — shipping-rate auto-fetch disabled so Razorpay flow can be
-  // exercised without a working Shiprocket account. Restore this useEffect
-  // (and the one in payNow) before shipping live.
-  /*
+  // Whenever the shopper picks a different saved address, debounce for 700ms
+  // then ask Shiprocket for live courier rates to that address. We don't
+  // re-save the address here — the multi-address CRUD already persisted it
+  // when the shopper created or edited it; we just quote against it.
   useEffect(() => {
-    if (!addressComplete || !/^\d{6}$/.test(address.pincode)) return;
+    if (!selectedAddress || !/^\d{6}$/.test(selectedAddress.pincode)) return;
 
     // a still-valid quote already covers this destination
     if (
-      shipping?.deliveryPincode === address.pincode &&
+      shipping?.deliveryPincode === selectedAddress.pincode &&
       shipping?.expiresAt &&
       new Date(shipping.expiresAt).getTime() > Date.now() + 60_000
     ) {
@@ -184,9 +184,9 @@ export default function CheckoutClient() {
       setRatesError("");
       setRatesLoading(true);
       try {
-        await addressApi.saveAddress(address);
         const data = await shippingApi.getShippingRates({
-          deliveryPincode: address.pincode,
+          deliveryPincode: selectedAddress.pincode,
+          addressId: selectedAddress._id,
         });
         if (cancelled) return;
         setShipping(data);
@@ -215,18 +215,10 @@ export default function CheckoutClient() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    addressComplete,
-    address.pincode,
-    address.addressLine1,
-    address.addressLine2,
-    address.city,
-    address.state,
-    address.country,
-    address.name,
-    address.phone,
+    selectedAddress?._id,
+    selectedAddress?.pincode,
     shipping,
   ]);
-  */
 
   const selectedRate = useMemo(
     () =>
@@ -460,9 +452,11 @@ export default function CheckoutClient() {
     }
     setPlacing(true);
     try {
-      // TEST ONLY — skip shipping quote; backend uses a stub when the
-      // IDs are omitted. Restore the fetchRates block below for live use.
-      /*
+      // Make sure we hand the server a live Shiprocket quote. If the shopper
+      // reached pay-now without one (e.g. rates failed earlier and they
+      // retried), or the previous quote has expired, re-fetch before placing
+      // the order so the shipping charge the user is paying is the one the
+      // backend will actually bill.
       let quoteId = shipping?.quoteId;
       let courier = courierId;
       const stale =
@@ -475,11 +469,12 @@ export default function CheckoutClient() {
       }
       if (!quoteId || !courier)
         throw new Error("No delivery option available for this pincode");
-      */
 
       // 2. order
       const { order } = await orderApi.createOrder({
         addressId: selectedAddress._id,
+        shippingQuoteId: quoteId,
+        shippingCourierId: courier,
         couponCode: coupon?.code || undefined,
       });
 

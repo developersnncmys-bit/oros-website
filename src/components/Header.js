@@ -246,12 +246,14 @@ export default function Header() {
             {categories.map((c) => (
               <li
                 key={c.slug}
-                // Each hex takes exactly 1/11 of the ul when the slider is
-                // active, so only 11 fit in view at a time and the arrows
-                // (which scrollBy clientWidth / 11) advance one item per
-                // click. With 11 or fewer, items keep their natural width.
+                // On phones the 1/11 slot crushes to ~30px, which clips the
+                // hex and truncates the label to 2 letters. Give phones a
+                // fixed roomy slot and let the row scroll horizontally;
+                // sm+ keeps the design cap of exactly 11 visible at once.
                 className={`shrink-0 snap-start ${
-                  needsSlider ? "w-[calc(100%/11)]" : "w-32"
+                  needsSlider
+                    ? "w-20 sm:w-[calc(100%/11)]"
+                    : "w-24 sm:w-32"
                 }`}
               >
                 <Link
@@ -270,7 +272,7 @@ export default function Header() {
                     >
                       OROS
                     </span>
-                    <span className="mt-0.5 block w-full truncate text-[13px] font-semibold text-white/90 group-hover:text-white">
+                    <span className="mt-0.5 block w-full truncate text-[11px] font-semibold text-white/90 group-hover:text-white sm:text-[13px]">
                       {c.name}
                     </span>
                   </span>

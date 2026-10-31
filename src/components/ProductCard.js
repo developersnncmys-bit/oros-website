@@ -165,10 +165,19 @@ export default function ProductCard({
           imgClassName="transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-105"
         />
 
-        {p.bulkTiers?.length > 0 && (
-          <span className="absolute left-2 top-2 rounded bg-ink px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
-            Bulk pricing
-          </span>
+        {(p.bulkTiers?.length > 0 || p.isCustomisable) && (
+          <div className="absolute left-2 top-2 flex flex-col items-start gap-1">
+            {p.bulkTiers?.length > 0 && (
+              <span className="rounded bg-ink px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
+                Bulk pricing
+              </span>
+            )}
+            {p.isCustomisable && (
+              <span className="rounded bg-flame px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
+                Customisable
+              </span>
+            )}
+          </div>
         )}
 
         <span className="absolute bottom-2 left-2 right-2 flex items-center justify-between gap-1.5 transition-all duration-300 sm:translate-y-2 sm:opacity-0 sm:group-hover:translate-y-0 sm:group-hover:opacity-100">

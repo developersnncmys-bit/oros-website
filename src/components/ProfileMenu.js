@@ -41,7 +41,8 @@ export default function ProfileMenu() {
   const [modalOpen, setModalOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [mode, setMode] = useState("login"); // login | register
-  const [method, setMethod] = useState("otp"); // otp | password
+  // Phone-OTP login is disabled — email + password only.
+  const [method, setMethod] = useState("password"); // otp | password
   const [step, setStep] = useState("phone"); // phone | otp (only used in otp method)
   const [phone, setPhone] = useState("");
   const [name, setName] = useState("");
@@ -373,87 +374,14 @@ export default function ProfileMenu() {
                   : "Welcome back"}
             </h2>
             <p className="mt-1.5 text-sm text-ink-3">
-              {step === "otp"
-                ? `We sent a 6-digit code to +91 ${phone}`
-                : method === "password"
-                  ? mode === "register"
-                    ? "Sign up with your email and a password."
-                    : "Sign in with your email and password."
-                  : "We'll text you a one-time code — no password."}
+              {mode === "register"
+                ? "Sign up with your email and a password."
+                : "Sign in with your email and password."}
             </p>
 
-            {/* method tabs — hidden during the OTP code-entry step */}
-            {step !== "otp" && (
-              <div className="mt-4 grid grid-cols-2 gap-1 rounded-lg border border-line bg-canvas p-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMethod("otp");
-                    setErr("");
-                  }}
-                  className={`rounded-md py-2 text-xs font-bold uppercase tracking-wide transition-colors ${
-                    method === "otp"
-                      ? "bg-shell text-ink shadow-sm"
-                      : "text-ink-3 hover:text-ink"
-                  }`}
-                >
-                  Phone OTP
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMethod("password");
-                    setErr("");
-                  }}
-                  className={`rounded-md py-2 text-xs font-bold uppercase tracking-wide transition-colors ${
-                    method === "password"
-                      ? "bg-shell text-ink shadow-sm"
-                      : "text-ink-3 hover:text-ink"
-                  }`}
-                >
-                  Email + Password
-                </button>
-              </div>
-            )}
+            {/* Phone-OTP method tabs and OTP step form removed — email+password only. */}
 
-            {step === "otp" ? (
-              <form onSubmit={confirmOtp} className="mt-5 space-y-4">
-                <OtpInput
-                  value={otp}
-                  onChange={(v) => {
-                    setOtp(v);
-                    setErr("");
-                  }}
-                  onComplete={(v) => confirmOtp(undefined, v)}
-                />
-
-                {err && (
-                  <p className="text-center text-xs font-semibold text-flame">
-                    {err}
-                  </p>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full rounded-lg bg-gold py-3.5 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-gold-dk disabled:opacity-60"
-                >
-                  {loading ? "Verifying…" : "Verify & continue"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStep("phone");
-                    setOtp("");
-                    setErr("");
-                  }}
-                  className="w-full text-center text-xs font-bold text-ink-3 hover:text-ink"
-                >
-                  ← Change number
-                </button>
-              </form>
-            ) : method === "password" ? (
-              <form onSubmit={submitPassword} className="mt-5 space-y-3">
+            <form onSubmit={submitPassword} className="mt-5 space-y-3">
                 {mode === "register" && (
                   <input
                     required
@@ -534,64 +462,8 @@ export default function ProfileMenu() {
                     ? "New here? Create an account"
                     : "Already have an account? Sign in"}
                 </button>
-              </form>
-            ) : (
-              <form onSubmit={sendOtp} className="mt-5 space-y-3">
-                {mode === "register" && (
-                  <>
-                    <input
-                      required
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Full name"
-                      className="h-11 w-full rounded-lg border border-line px-3.5 text-sm text-ink outline-none focus:border-flame"
-                    />
-                    <input
-                      required
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="Email"
-                      className="h-11 w-full rounded-lg border border-line px-3.5 text-sm text-ink outline-none focus:border-flame"
-                    />
-                  </>
-                )}
-                <div className="flex h-11 items-center rounded-lg border border-line px-3.5 focus-within:border-flame">
-                  <span className="text-sm font-semibold text-ink-3">+91</span>
-                  <input
-                    autoFocus
-                    value={phone}
-                    onChange={(e) => setPhone(CLEAN_PHONE(e.target.value))}
-                    inputMode="numeric"
-                    placeholder="9876543210"
-                    className="ml-2 h-full flex-1 bg-transparent text-sm text-ink outline-none"
-                  />
-                </div>
-
-                {err && <p className="text-xs font-semibold text-flame">{err}</p>}
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full rounded-lg bg-gold py-3 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-gold-dk disabled:opacity-60"
-                >
-                  {loading ? "Sending…" : "Send code"}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode(mode === "login" ? "register" : "login");
-                    setErr("");
-                  }}
-                  className="w-full text-center text-xs font-bold text-flame hover:underline"
-                >
-                  {mode === "login"
-                    ? "New here? Create an account"
-                    : "Already have an account? Login"}
-                </button>
-              </form>
-            )}
+            </form>
+            {/* Phone / send-OTP form removed — email+password only. */}
           </div>
         </div>
       )}
