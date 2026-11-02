@@ -1379,7 +1379,7 @@ export default function ProductDetail({ product: p }) {
                 Logo image
                 <input
                   type="file"
-                  accept="image/png,image/jpeg,image/jpg,image/webp"
+                  accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml,.svg"
                   onChange={(e) => {
                     const file = e.target.files?.[0] || null;
                     if (file && file.size > 5 * 1024 * 1024) {
@@ -1392,7 +1392,7 @@ export default function ProductDetail({ product: p }) {
                   className="mt-1.5 block w-full text-sm text-ink file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-ink file:px-4 file:py-2 file:text-xs file:font-bold file:uppercase file:tracking-wider file:text-white hover:file:bg-ink-2"
                 />
                 <span className="mt-1 block text-xs text-ink-4">
-                  PNG, JPG or WEBP · up to 5 MB
+                  PNG, JPG, WEBP or SVG · up to 5 MB
                 </span>
               </label>
 
