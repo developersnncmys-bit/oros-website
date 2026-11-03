@@ -230,7 +230,8 @@ export default function CheckoutClient() {
 
   const deliveryCharge = selectedRate?.totalCharge ?? 0;
   const discount = Math.min(coupon?.discount ?? 0, subtotal);
-  const total = Math.max(0, subtotal + deliveryCharge - discount);
+  // TEMP: testing — mirrors order.service.js dropping shipping from the total
+  const total = Math.max(0, subtotal - discount);
 
   if (placed) return <OrderPlaced order={placed} />;
   if (lines.length === 0) return <EmptyState />;
@@ -775,7 +776,7 @@ export default function CheckoutClient() {
               </div>
             )}
 
-            {(ratesLoading || ratesError || shipping?.rates?.length > 0) && (
+            {false && (ratesLoading || ratesError || shipping?.rates?.length > 0) && (
               <div className="mt-4 border-t border-line pt-4">
                 <p className="mb-2 text-xs font-bold uppercase tracking-wide text-ink-4">
                   Delivery option
@@ -987,16 +988,18 @@ export default function CheckoutClient() {
                   − {formatINR(discount)}
                 </Row>
               )}
-              <Row label="Delivery" accent={selectedRate && deliveryCharge === 0}>
-                {ratesLoading
-                  ? "Calculating…"
-                  : selectedRate
-                    ? deliveryCharge === 0
-                      ? "Free"
-                      : formatINR(deliveryCharge)
-                    : "Enter address"}
-              </Row>
-              {selectedRate && (
+              {false && (
+                <Row label="Delivery" accent={selectedRate && deliveryCharge === 0}>
+                  {ratesLoading
+                    ? "Calculating…"
+                    : selectedRate
+                      ? deliveryCharge === 0
+                        ? "Free"
+                        : formatINR(deliveryCharge)
+                      : "Enter address"}
+                </Row>
+              )}
+              {false && selectedRate && (
                 <p className="-mt-1 text-xs text-ink-3">
                   {selectedRate.courierName}
                   {formatEta(selectedRate.estimatedDays)
