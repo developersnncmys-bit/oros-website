@@ -351,12 +351,14 @@ export default function ProductCard({
         <PriceBlock product={p} />
       </div>
 
-      {p.leadTimeDays != null && (
+      {(p.leadTimeDays != null || p.leadTimeLabel) && (
         <div className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-leaf">
           <Lightning size={11} weight="fill" />
-          {p.leadTimeDays === 0
-            ? "Ships in 48h"
-            : `Made in ${p.leadTimeDays} day${p.leadTimeDays === 1 ? "" : "s"}`}
+          {p.leadTimeDays == null
+            ? p.leadTimeLabel
+            : p.leadTimeDays === 0
+              ? "Ships in 48h"
+              : `Made in ${p.leadTimeDays} day${p.leadTimeDays === 1 ? "" : "s"}`}
         </div>
       )}
     </Link>

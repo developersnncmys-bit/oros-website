@@ -156,6 +156,7 @@ export function normalizeProduct(raw, extra = {}) {
     compareAt: product.compareAt != null ? Number(product.compareAt) : null,
     taxRate: Number(product.taxRate) || 0,
     leadTimeDays: product.leadTimeDays ?? null,
+    leadTimeLabel: product.leadTimeLabel || "",
     minQty: Number(product.minQty) || 1,
     isCustomisable: !!product.isCustomisable,
     allowDualColor: !!product.allowDualColor,

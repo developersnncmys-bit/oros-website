@@ -898,13 +898,15 @@ export default function ProductDetail({ product: p }) {
 
           <div className="mt-4 flex flex-wrap items-center gap-3 text-sm font-semibold text-ink-3">
             {p.sku && <span>SKU {p.sku}</span>}
-            {p.leadTimeDays != null && (
+            {(p.leadTimeDays != null || p.leadTimeLabel) && (
               <>
                 <span className="h-3.5 w-px bg-line" />
                 <span className="text-leaf">
-                  {p.leadTimeDays === 0
-                    ? "Dispatches in 48h"
-                    : `Made in ${p.leadTimeDays} days`}
+                  {p.leadTimeDays == null
+                    ? p.leadTimeLabel
+                    : p.leadTimeDays === 0
+                      ? "Dispatches in 48h"
+                      : `Made in ${p.leadTimeDays} days`}
                 </span>
               </>
             )}
