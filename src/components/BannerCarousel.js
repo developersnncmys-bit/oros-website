@@ -94,20 +94,24 @@ export default function BannerCarousel({ banners = [] }) {
           className={`relative min-h-[400px] overflow-hidden rounded-2xl lg:min-h-[470px] ${t.bg}`}
         >
           <div data-slide-photo className="absolute inset-0">
+            {/* Art-directed per viewport: keep the default lazy loading so the
+                browser only downloads the image matching the active media
+                query. `preload` on both would eagerly fetch BOTH on every
+                device — Next 16's image docs call this out explicitly. */}
             <Image
               src={slide.imageMobile}
               alt=""
               fill
-              preload={idx === 0}
               sizes="calc(100vw - 2rem)"
+              fetchPriority={idx === 0 ? "high" : undefined}
               className="block object-cover object-right lg:hidden"
             />
             <Image
               src={slide.imageDesktop}
               alt=""
               fill
-              preload={idx === 0}
               sizes="(max-width: 1600px) calc(100vw - 4rem), 1536px"
+              fetchPriority={idx === 0 ? "high" : undefined}
               className="hidden object-cover object-right lg:block"
             />
           </div>

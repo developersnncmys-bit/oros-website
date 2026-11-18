@@ -35,15 +35,18 @@ export default function ProfileMenu() {
   const verifyRegisterOtp = useAuthStore((s) => s.verifyRegisterOtp);
   const loginWithPassword = useAuthStore((s) => s.loginWithPassword);
   const registerWithPassword = useAuthStore((s) => s.registerWithPassword);
+  const requestPasswordReset = useAuthStore((s) => s.requestPasswordReset);
+  const resetPassword = useAuthStore((s) => s.resetPassword);
   const logout = useAuthStore((s) => s.logout);
   const loading = useAuthStore((s) => s.loading);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [mode, setMode] = useState("login"); // login | register
+  const [mode, setMode] = useState("login"); // login | register | forgot
   // Phone-OTP login is disabled — email + password only.
   const [method, setMethod] = useState("password"); // otp | password
-  const [step, setStep] = useState("phone"); // phone | otp (only used in otp method)
+  // phone | otp (otp method) · email | reset (forgot mode)
+  const [step, setStep] = useState("phone");
   const [phone, setPhone] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -137,6 +140,41 @@ export default function ProfileMenu() {
       }
       setModalOpen(false);
       reset();
+    } catch (e) {
+      setErr(e.message);
+    }
+  };
+
+  const sendResetCode = async (e) => {
+    e?.preventDefault?.();
+    setErr("");
+    setNotice("");
+    if (!email.trim()) return setErr("Enter your email");
+    try {
+      await requestPasswordReset(email.trim());
+      setStep("reset");
+      setOtp("");
+      setPassword("");
+    } catch (e) {
+      setErr(e.message);
+    }
+  };
+
+  const submitReset = async (e) => {
+    e.preventDefault();
+    setErr("");
+    if (otp.length < 6) return setErr("Enter the 6-digit code");
+    if (!password || password.length < 6)
+      return setErr("New password must be at least 6 characters");
+    try {
+      await resetPassword({ email: email.trim(), otp, password });
+      setMode("login");
+      setStep("phone");
+      setOtp("");
+      setPassword("");
+      setErr("");
+      setNotice("Password reset — please sign in with your new password");
+      setTimeout(() => setNotice(""), 4000);
     } catch (e) {
       setErr(e.message);
     }
@@ -367,20 +405,126 @@ export default function ProfileMenu() {
             className="w-full max-w-sm rounded-2xl bg-shell p-6 shadow-2xl"
           >
             <h2 className="font-display text-xl font-extrabold text-ink">
-              {step === "otp"
-                ? "Enter the code"
-                : mode === "register"
-                  ? "Create your account"
-                  : "Welcome back"}
+              {mode === "forgot"
+                ? step === "reset"
+                  ? "Set a new password"
+                  : "Reset your password"
+                : step === "otp"
+                  ? "Enter the code"
+                  : mode === "register"
+                    ? "Create your account"
+                    : "Welcome back"}
             </h2>
             <p className="mt-1.5 text-sm text-ink-3">
-              {mode === "register"
-                ? "Sign up with your email and a password."
-                : "Sign in with your email and password."}
+              {mode === "forgot"
+                ? step === "reset"
+                  ? `Enter the 6-digit code sent for ${email.trim()} and choose a new password.`
+                  : "Enter your email — we'll send a 6-digit reset code."
+                : mode === "register"
+                  ? "Sign up with your email and a password."
+                  : "Sign in with your email and password."}
             </p>
 
             {/* Phone-OTP method tabs and OTP step form removed — email+password only. */}
 
+            {mode === "forgot" && step === "email" && (
+              <form onSubmit={sendResetCode} className="mt-5 space-y-3">
+                <input
+                  required
+                  type="email"
+                  autoFocus
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Email"
+                  className="h-11 w-full rounded-lg border border-line px-3.5 text-sm text-ink outline-none focus:border-flame"
+                />
+
+                {err && <p className="text-xs font-semibold text-flame">{err}</p>}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full rounded-lg bg-gold py-3 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-gold-dk disabled:opacity-60"
+                >
+                  {loading ? "Sending…" : "Send reset code"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode("login");
+                    setErr("");
+                    setStep("phone");
+                  }}
+                  className="w-full text-center text-xs font-bold text-flame hover:underline"
+                >
+                  Back to sign in
+                </button>
+              </form>
+            )}
+
+            {mode === "forgot" && step === "reset" && (
+              <form onSubmit={submitReset} className="mt-5 space-y-3">
+                <OtpInput
+                  value={otp}
+                  onChange={setOtp}
+                  onComplete={(code) => setOtp(code)}
+                />
+                <div className="flex h-11 items-center rounded-lg border border-line pr-2 focus-within:border-flame">
+                  <input
+                    required
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="New password (min 6 chars)"
+                    minLength={6}
+                    className="h-full flex-1 rounded-l-lg bg-transparent px-3.5 text-sm text-ink outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    className="grid h-8 w-8 place-items-center rounded-md text-ink-3 hover:text-ink"
+                  >
+                    {showPassword ? <EyeSlash size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+
+                {err && <p className="text-xs font-semibold text-flame">{err}</p>}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full rounded-lg bg-gold py-3 text-sm font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-gold-dk disabled:opacity-60"
+                >
+                  {loading ? "Resetting…" : "Reset password"}
+                </button>
+
+                <div className="flex items-center justify-between text-xs font-bold">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStep("email");
+                      setOtp("");
+                      setErr("");
+                    }}
+                    className="text-ink-3 hover:text-ink hover:underline"
+                  >
+                    ← Change email
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => sendResetCode()}
+                    disabled={loading}
+                    className="text-flame hover:underline disabled:opacity-60"
+                  >
+                    Resend code
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {mode !== "forgot" && (
             <form onSubmit={submitPassword} className="mt-5 space-y-3">
                 {mode === "register" && (
                   <input
@@ -450,6 +594,22 @@ export default function ProfileMenu() {
                       : "Sign in"}
                 </button>
 
+                {mode === "login" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode("forgot");
+                      setStep("email");
+                      setPassword("");
+                      setOtp("");
+                      setErr("");
+                    }}
+                    className="w-full text-center text-xs font-bold text-ink-3 hover:text-ink hover:underline"
+                  >
+                    Forgot password?
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={() => {
@@ -463,6 +623,7 @@ export default function ProfileMenu() {
                     : "Already have an account? Sign in"}
                 </button>
             </form>
+            )}
             {/* Phone / send-OTP form removed — email+password only. */}
           </div>
         </div>

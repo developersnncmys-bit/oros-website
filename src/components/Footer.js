@@ -59,7 +59,7 @@ export default async function Footer() {
         </ul>
 
         {/* ══ Body ══ */}
-        <div className="grid items-start gap-10 py-12 lg:grid-cols-[1.5fr_1fr_1.3fr] lg:gap-16">
+        <div className="grid items-start gap-10 py-12 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.2fr] lg:gap-14">
           {/* ── Studio ── */}
           <div>
             <Link href="/" aria-label="OROS — home" className="inline-block">
@@ -86,6 +86,30 @@ export default async function Footer() {
               categories={categories}
               productCount={productCount}
             />
+          </nav>
+
+          {/* ── Policies ── */}
+          <nav>
+            <h3 className="mb-4 text-[11px] font-bold uppercase tracking-[0.16em] text-white/35">
+              Policies
+            </h3>
+            <ul className="space-y-2.5 text-sm">
+              {[
+                { href: "/privacy-policy", label: "Privacy Policy" },
+                { href: "/shipping-policy", label: "Shipping Policy" },
+                { href: "/refund-policy", label: "Refund & Cancellation" },
+                { href: "/terms-and-conditions", label: "Terms & Conditions" },
+              ].map((p) => (
+                <li key={p.href}>
+                  <Link
+                    href={p.href}
+                    className="text-white/70 transition-colors hover:text-neon-2"
+                  >
+                    {p.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </nav>
 
           {/* ── Address ── */}

@@ -22,5 +22,13 @@ export const registerWithPassword = (body) =>
 export const loginWithPassword = (body) =>
   api.post("/auth/login-password", body);
 
+/** POST /auth/forgot-password — { email } -> OTP sent (fixed 123456 in dev) */
+export const forgotPassword = (email) =>
+  api.post("/auth/forgot-password", { email });
+
+/** POST /auth/reset-password — { email, otp, newPassword } -> { success } */
+export const resetPassword = (body) =>
+  api.post("/auth/reset-password", body);
+
 /** GET /auth/me -> { user } */
 export const getMe = () => api.get("/auth/me");

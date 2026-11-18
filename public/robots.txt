@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+
+Disallow: /account
+Disallow: /account/
+Disallow: /cart
+Disallow: /cart/
+Disallow: /checkout
+Disallow: /checkout/
+Disallow: /api/
+
+Sitemap: https://orosent.com/sitemap.xml

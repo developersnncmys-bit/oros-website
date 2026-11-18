@@ -16,6 +16,11 @@ export default function Rail({
   products,
   href = "/shop",
   showOptions = false,
+  // When this rail is above the fold on initial render (e.g. right under the
+  // banner on the home page), mark it as priority so the first visible cards
+  // don't lazy-wait on the intersection observer.
+  priority = false,
+  priorityCount = 4,
 }) {
   const track = useRef(null);
   const [atStart, setAtStart] = useState(true);
@@ -71,11 +76,12 @@ export default function Rail({
             ref={track}
             className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth"
           >
-            {products.map((p) => (
+            {products.map((p, i) => (
               <ProductCard
                 key={p.slug}
                 product={p}
                 showOptions={showOptions}
+                priority={priority && i < priorityCount}
                 // Next.js preserves scroll position for same-pattern routes
                 // (e.g. /shop/A → /shop/B), and Lenis hijacks window.scrollTo
                 // so the native scroll-to-top never lands. Jump through

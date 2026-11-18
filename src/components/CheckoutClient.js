@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -16,7 +16,7 @@ import {
 } from "@phosphor-icons/react";
 import ProductImage from "@/components/ProductImage";
 import { useConfirm } from "@/components/ConfirmDialog";
-import { useCart } from "@/store/cartStore";
+import { useCart, useCartStore } from "@/store/cartStore";
 import { useAuthStore, useUser } from "@/store/authStore";
 import { formatINR } from "@/lib/format";
 import * as addressApi from "@/api/address.api";
@@ -64,6 +64,14 @@ export default function CheckoutClient() {
   const { isSignedIn, isCustomer } = useUser();
   const { confirm, ConfirmDialog } = useConfirm();
 
+  // The server cart has no image field, so `syncFromServer` lands lines with
+  // the placeholder. CartDrawer refreshes on open; checkout needs the same
+  // nudge or the order summary stays image-less.
+  const refreshImages = useCartStore((s) => s.refreshImages);
+  useEffect(() => {
+    if (lines.length) refreshImages();
+  }, [lines.length, refreshImages]);
+
   const [addresses, setAddresses] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
 
@@ -73,6 +81,80 @@ export default function CheckoutClient() {
   const [editingId, setEditingId] = useState(null);
   const [formAddress, setFormAddress] = useState(EMPTY_ADDRESS);
   const [formError, setFormError] = useState("");
+  // Per-field validation messages so errors sit under the offending input
+  // instead of in a single banner at the bottom of the form.
+  const [fieldErrors, setFieldErrors] = useState({});
+  // Lookup state for the India Post API — we validate pincode existence and
+  // auto-fill city/state once 6 digits have been typed. { status, location }.
+  const [pincodeLookup, setPincodeLookup] = useState({ status: "idle" });
+  const pincodeAbortRef = useRef(null);
+
+  const lookupPincode = async (pincode) => {
+    if (pincodeAbortRef.current) pincodeAbortRef.current.abort();
+    const ctrl = new AbortController();
+    pincodeAbortRef.current = ctrl;
+    setPincodeLookup({ status: "loading" });
+    try {
+      const res = await fetch(
+        `https://api.postalpincode.in/pincode/${pincode}`,
+        { signal: ctrl.signal }
+      );
+      const data = await res.json();
+      const entry = Array.isArray(data) && data[0];
+      if (entry && entry.Status === "Success" && entry.PostOffice?.length) {
+        const po = entry.PostOffice[0];
+        const city = po.District || po.Name || "";
+        const state = po.State || "";
+        setFormAddress((a) => ({
+          ...a,
+          pincode,
+          city: a.city || city,
+          state: a.state || state,
+        }));
+        setFieldErrors((prev) => {
+          const { pincode: _ignore, ...rest } = prev;
+          return rest;
+        });
+        setPincodeLookup({
+          status: "ok",
+          location: [city, state].filter(Boolean).join(", "),
+        });
+      } else {
+        setPincodeLookup({ status: "notfound" });
+        setFieldErrors((prev) => ({
+          ...prev,
+          pincode: "This pincode could not be found.",
+        }));
+      }
+    } catch (e) {
+      // network failure: silently fall back — format validation already
+      // passed, don't block checkout just because the lookup service is
+      // unreachable
+      if (e.name !== "AbortError") {
+        setPincodeLookup({ status: "idle" });
+      }
+    }
+  };
+
+  // Live validators. `onSubmit=false` is permissive — a partial value that
+  // could still become valid (e.g. "9234" en route to 10 digits) returns no
+  // error, so we don't yell at users mid-type. `onSubmit=true` requires the
+  // full correct length and is used on save.
+  const validatePhone = (v, { onSubmit = false } = {}) => {
+    if (!v) return onSubmit ? "Enter your phone number." : undefined;
+    if (!/^[6-9]/.test(v))
+      return "Mobile numbers start with 6, 7, 8, or 9.";
+    if (v.length === 10) return undefined;
+    if (onSubmit) return "Enter all 10 digits.";
+    return undefined;
+  };
+  const validatePincode = (v, { onSubmit = false } = {}) => {
+    if (!v) return onSubmit ? "Enter your pincode." : undefined;
+    if (!/^[1-9]/.test(v)) return "Pincode cannot start with 0.";
+    if (v.length === 6) return undefined;
+    if (onSubmit) return "Enter all 6 digits.";
+    return undefined;
+  };
   const [savingAddress, setSavingAddress] = useState(false);
 
   const [couponCode, setCouponCode] = useState("");
@@ -244,6 +326,7 @@ export default function CheckoutClient() {
       phone: user?.phone || "",
     });
     setFormError("");
+    setFieldErrors({});
     setShowForm(true);
   };
 
@@ -251,6 +334,7 @@ export default function CheckoutClient() {
     setEditingId(addr._id);
     setFormAddress({ ...EMPTY_ADDRESS, ...addr });
     setFormError("");
+    setFieldErrors({});
     setShowForm(true);
   };
 
@@ -270,8 +354,18 @@ export default function CheckoutClient() {
 
   const saveForm = async () => {
     setFormError("");
+    setFieldErrors({});
     if (!formComplete) {
       setFormError("Please fill in every required field.");
+      return;
+    }
+    const errs = {};
+    const phoneErr = validatePhone(formAddress.phone, { onSubmit: true });
+    if (phoneErr) errs.phone = phoneErr;
+    const pincodeErr = validatePincode(formAddress.pincode, { onSubmit: true });
+    if (pincodeErr) errs.pincode = pincodeErr;
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
       return;
     }
     setSavingAddress(true);
@@ -668,17 +762,46 @@ export default function CheckoutClient() {
                       setFormAddress({ ...formAddress, name: v })
                     }
                   />
-                  <Field
-                    label="Phone"
-                    value={formAddress.phone}
-                    inputMode="numeric"
-                    onChange={(v) =>
-                      setFormAddress({
-                        ...formAddress,
-                        phone: v.replace(/\D/g, "").slice(0, 10),
-                      })
-                    }
-                  />
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-ink-4">
+                      Phone
+                    </span>
+                    <div
+                      className={`flex h-11 items-stretch rounded-md border transition-colors focus-within:border-flame ${
+                        fieldErrors.phone ? "border-flame" : "border-line"
+                      }`}
+                    >
+                      <span className="flex items-center border-r border-line px-3 text-sm font-semibold text-ink-3">
+                        +91
+                      </span>
+                      <input
+                        required
+                        type="tel"
+                        inputMode="numeric"
+                        autoComplete="tel-national"
+                        maxLength={10}
+                        value={formAddress.phone}
+                        onChange={(e) => {
+                          const next = e.target.value
+                            .replace(/\D/g, "")
+                            .slice(0, 10);
+                          setFormAddress({ ...formAddress, phone: next });
+                          const err = validatePhone(next);
+                          setFieldErrors((prev) => {
+                            const { phone, ...rest } = prev;
+                            return err ? { ...rest, phone: err } : rest;
+                          });
+                        }}
+                        placeholder="98765 43210"
+                        className="h-full w-full rounded-r-md bg-transparent px-3.5 text-sm text-ink outline-none placeholder:text-ink-4"
+                      />
+                    </div>
+                    {fieldErrors.phone && (
+                      <p className="mt-1 text-xs font-semibold text-flame">
+                        {fieldErrors.phone}
+                      </p>
+                    )}
+                  </label>
                   <div className="sm:col-span-2">
                     <Field
                       label="Address line 1"
@@ -737,12 +860,16 @@ export default function CheckoutClient() {
                     label="Pincode"
                     value={formAddress.pincode}
                     inputMode="numeric"
-                    onChange={(v) =>
-                      setFormAddress({
-                        ...formAddress,
-                        pincode: v.replace(/\D/g, "").slice(0, 6),
-                      })
-                    }
+                    error={fieldErrors.pincode}
+                    onChange={(v) => {
+                      const next = v.replace(/\D/g, "").slice(0, 6);
+                      setFormAddress({ ...formAddress, pincode: next });
+                      const err = validatePincode(next);
+                      setFieldErrors((prev) => {
+                        const { pincode, ...rest } = prev;
+                        return err ? { ...rest, pincode: err } : rest;
+                      });
+                    }}
                   />
                 </div>
 
@@ -1045,7 +1172,16 @@ export default function CheckoutClient() {
   );
 }
 
-function Field({ label, value, onChange, required = true, ...rest }) {
+function Field({
+  label,
+  value,
+  onChange,
+  required = true,
+  error,
+  helper,
+  helperTone = "muted",
+  ...rest
+}) {
   return (
     <label className="block">
       <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-ink-4">
@@ -1055,9 +1191,24 @@ function Field({ label, value, onChange, required = true, ...rest }) {
         required={required}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-11 w-full rounded-md border border-line px-3.5 text-sm text-ink outline-none transition-colors placeholder:text-ink-4 focus:border-flame"
+        className={`h-11 w-full rounded-md border px-3.5 text-sm text-ink outline-none transition-colors placeholder:text-ink-4 focus:border-flame ${
+          error ? "border-flame" : "border-line"
+        }`}
         {...rest}
       />
+      {error ? (
+        <p className="mt-1 text-xs font-semibold text-flame">{error}</p>
+      ) : helper ? (
+        <p
+          className={`mt-1 text-xs ${
+            helperTone === "success"
+              ? "font-semibold text-leaf"
+              : "text-ink-3"
+          }`}
+        >
+          {helper}
+        </p>
+      ) : null}
     </label>
   );
 }

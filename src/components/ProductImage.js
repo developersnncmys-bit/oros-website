@@ -49,8 +49,11 @@ export default function ProductImage({
         alt={alt || ""}
         fill
         sizes={sizes}
-        // Next 16: `preload` replaces the deprecated `priority`
-        preload={priority}
+        // For non-LCP above-the-fold images, Next 16 recommends
+        // `loading="eager"` + `fetchPriority="high"` over `preload`, which
+        // is reserved for the single LCP element.
+        loading={priority ? "eager" : "lazy"}
+        fetchPriority={priority ? "high" : undefined}
         onError={() => setFailed(true)}
         className={`${fit === "contain" ? "object-contain" : "object-cover"} ${imgClassName}`}
       />

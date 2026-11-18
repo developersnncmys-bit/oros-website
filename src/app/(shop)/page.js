@@ -61,6 +61,7 @@ export default async function Home() {
           subtitle="Everything we print, in one place"
           products={bestOf}
           href="/shop"
+          priority
         />
       )}
 

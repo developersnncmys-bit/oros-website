@@ -51,9 +51,12 @@ function HexImage({ src, alt, tone = "neon" }) {
   );
 }
 
-export default function Header() {
+export default function Header({ initialCategories = [] }) {
   const [compact, setCompact] = useState(false);
-  const [categories, setCategories] = useState([]);
+  // Seeded from the server render so the hex rail is visible immediately,
+  // then refreshed once on the client in case the catalogue changed since
+  // the page was cached.
+  const [categories, setCategories] = useState(initialCategories);
   // the badge counts cart documents for this user, not total units
   const { itemCount: count, subtotal, openDrawer } = useCart();
   const badge = useRef(null);
@@ -62,8 +65,12 @@ export default function Header() {
   const [canRight, setCanRight] = useState(false);
 
   useEffect(() => {
+    // Only hit the network if the server pass didn't seed anything —
+    // otherwise the rail is already correct and a refetch just wastes a
+    // request on every page load.
+    if (initialCategories.length > 0) return;
     fetchCategories().then(setCategories);
-  }, []);
+  }, [initialCategories]);
 
   useEffect(() => {
     // hide the category rail on the first bit of scroll, and only bring it
@@ -156,6 +163,20 @@ export default function Header() {
           </div>
 
           <div className="flex shrink-0 items-center gap-2 lg:gap-3">
+            <Link
+              href="/custom"
+              aria-label="OROS Custom order"
+              title="OROS Custom order"
+              className="group grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-gold/60 transition-all duration-300 hover:scale-110 hover:bg-gold/10 xl:hidden"
+            >
+              <span
+                className="relative grid h-8 w-7 place-items-center"
+                style={{ clipPath: HEX_CLIP, background: "#f5b30122" }}
+              >
+                <Crown size={16} className="text-gold" weight="fill" />
+              </span>
+            </Link>
+
             <Link
               href="/custom"
               title="Custom order"
@@ -272,7 +293,10 @@ export default function Header() {
                     >
                       OROS
                     </span>
-                    <span className="mt-0.5 block w-full truncate text-[11px] font-semibold text-white/90 group-hover:text-white sm:text-[13px]">
+                    {/* Phones: allow wrapping so names like "Desk accessories"
+                        and "Decorative Objects" show in full. sm+ slots are
+                        wider but still capped, so keep the ellipsis there. */}
+                    <span className="mt-0.5 block w-full wrap-break-word px-0.5 text-[11px] font-semibold leading-tight text-white/90 group-hover:text-white sm:truncate sm:text-[13px]">
                       {c.name}
                     </span>
                   </span>

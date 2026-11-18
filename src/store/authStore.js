@@ -119,6 +119,31 @@ export const useAuthStore = create(
         }
       },
 
+      // ── forgot / reset password (storefront) ──
+      requestPasswordReset: async (email) => {
+        set({ loading: true, error: null });
+        try {
+          await authApi.forgotPassword(email);
+          set({ loading: false });
+          return true;
+        } catch (e) {
+          set({ loading: false, error: e.message });
+          throw e;
+        }
+      },
+
+      resetPassword: async ({ email, otp, password }) => {
+        set({ loading: true, error: null });
+        try {
+          await authApi.resetPassword({ email, otp, newPassword: password });
+          set({ loading: false });
+          return true;
+        } catch (e) {
+          set({ loading: false, error: e.message });
+          throw e;
+        }
+      },
+
       loadMe: async () => {
         if (!tokenStore.get()) return null;
         try {
